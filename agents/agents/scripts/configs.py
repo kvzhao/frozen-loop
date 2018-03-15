@@ -30,7 +30,7 @@ def default():
   """Default configuration for PPO."""
   # General
   algorithm = algorithms.PPO
-  num_agents = 30
+  num_agents = 3
   eval_episodes = 30
   use_gpu = False
   # Environment
@@ -71,6 +71,17 @@ def pendulum():
 def pong():
   locals().update(default())
   env = 'Pong-v0'
+  max_length = 200
+  steps = 1e6  # 1M
+  # Optimization
+  network = networks.feed_forward_categorical
+  batch_size = 20
+  chunk_length = 50
+  return locals()
+
+def mountaincar():
+  locals().update(default())
+  env = 'MountainCar-v0'
   max_length = 200
   steps = 1e6  # 1M
   # Optimization

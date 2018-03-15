@@ -63,7 +63,6 @@ def _custom_diag_normal_kl(lhs, rhs, name=None):  # pylint: disable=unused-argum
         tf.reduce_sum(logstd1_2, -1) - tf.reduce_sum(logstd0_2, -1) -
         mean0.shape[-1].value)
 
-
 def feed_forward_gaussian(
     config, action_space, observations, unused_length, state=None):
   """Independent feed forward networks for policy and value.
@@ -148,6 +147,9 @@ def feed_forward_categorical(
   flat_observations = tf.reshape(observations, [
       tf.shape(observations)[0], tf.shape(observations)[1],
       functools.reduce(operator.mul, observations.shape.as_list()[2:], 1)])
+  # obs of montain car is Box(2,)	
+  # See the env wrapper
+  # flat observation: Tensor("perform/network/Reshape:0", shape=(?, ?, 2), dtype=float32, device=/device:CPU:0)
   with tf.variable_scope('policy'):
     x = flat_observations
     for size in config.policy_layers:
@@ -160,6 +162,69 @@ def feed_forward_categorical(
       x = tf.contrib.layers.fully_connected(x, size, tf.nn.relu)
     value = tf.contrib.layers.fully_connected(x, 1, None)[..., 0]
   policy = tfd.Categorical(logits)
+  return agents.tools.AttrDict(policy=policy, value=value, state=state)
+
+
+def convolution_catergorical(
+    config, action_space, observations, unused_length, state=None):
+  """Independent convolutional policy and value networks.
+
+  The network is designed for Pong for testing discrete action env.
+
+  Args:
+    config: Configuration object.
+    action_space: Action space of the environment.
+    observations: Sequences of observations.
+    unused_length: Batch of sequence lengths.
+    state: Unused batch of initial states.
+
+  Raises:
+    ValueError: Unexpected action space.
+
+  Returns:
+  """
+
+  #if not isinstance(action_space, gym.spaces.Discrete):
+  #  raise ValueError('Network expects discrete actions.')
+
+  # closure function
+  def convhead(x):
+    x = tf.layers.conv2d(x,
+      filters=32, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
+    x = tf.contrib.layers.flatten(x)
+    return x
+
+  init_output_weights = tf.contrib.layers.variance_scaling_initializer(
+    factor=config.init_output_factor)
+  # It is tricky about observation shape
+  # Q: What are the shape[0] and shape[1]?
+  flat_observations = tf.reshape(observations, [
+      tf.shape(observations)[0], tf.shape(observations)[1],
+      functools.reduce(operator.mul, observations.shape.as_list()[2:], 1)])
+  # Suppose the shape is 3D image
+  print ("Shape of the flat observation in ConvNet: {}".format(flat_observations.shape))
+  
+  x = convhead(observations)
+
+  print ("Shape of the flat observation in ConvNet: {}".format(x.shape))
+
+  # policy network
+  with tf.variable_scope('policy'):
+    x = flat_observations
+    for size in config.policy_layers:
+      x = tf.contrib.layers.fully_connected(x, size, tf.nn.relu)
+    logits = tf.contrib.layers.fully_connected(
+        x, action_space.n, None, weights_initializer=init_output_weights)
+
+  # value network
+  with tf.variable_scope('value'):
+    x = flat_observations
+    for size in config.value_layers:
+      x = tf.contrib.layers.fully_connected(x, size, tf.nn.relu)
+    value = tf.contrib.layers.fully_connected(x, 1, None)[..., 0]
+
+  policy = tfd.Categorical(logits)
+
   return agents.tools.AttrDict(policy=policy, value=value, state=state)
 
 
