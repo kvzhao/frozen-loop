@@ -73,7 +73,11 @@ enum class ActDir {RIGHT=0, DOWN, LEFT, UP,
 
 using namespace boost::python; 
 
+#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
+typedef std::vector<int> IntList;
+
 // wrap c++ array as numpy array
+// this function may cause some numeric issue? (probably)
 static boost::python::object float_wrap(const std::vector<double> &vec) {
     npy_intp size = vec.size();
     double *data = const_cast<double *>(&vec[0]);
@@ -143,11 +147,12 @@ class SQIceGame {
 
         // Metropolis action
         vector<double> Metropolis();
-        // Loop algorithms are empty functions
+
+        // Loop algorithms
         vector<int> LongLoopAlgorithm();
 
-        inline void FlipTrajectory() {flip_along_traj(agent_site_trajectory);};
-        inline void InitAgentSite() {flip_agent_state_tp1();};
+        inline void FlipTrajectory() {flip_along_trajectory(agent_site_trajectory);};
+        inline void InitAgentSite(int site) {put_agent(site);};
 
         int Start(int init_site);
         int Restart(int init_site);
@@ -159,8 +164,21 @@ class SQIceGame {
 
         inline int GetAgentSite() {return get_agent_site();};
 
+        // Configurations (integer array)
+        object GetStateT();
+        object GetStateTp1();
+        inline object GetSublatt() {return int_wrap(latt.sub);};
+
         // Mini maps
-        object GetStateTMap();
+        /*
+          TODO: IMPORTANT!
+          Rearrange the state_t (from pure configuration) to ordered map according to coordinates.
+
+          Note: To prevent numerical bugs, object -> vector<int>/ vector<double>
+                which is handled by Vec2List.
+        */
+        vector<int> GetStateTMap();
+        //object GetStateTMap();
         object GetStateTp1Map();
         object GetCanvasMap(); 
         object GetEnergyMap();
@@ -213,10 +231,9 @@ class SQIceGame {
         void update_ice_config();
         /// this function used fliiping ice config according to states?
 
-
         // legacy
         void flip_agent_state_tp1();
-        void flip_along_traj(const vector<int> &traj);
+        void flip_along_trajectory(const vector<int> &traj);
 
         // SO THE FOLLOWING SHOULD BE MODIFIED.
         // return new agent site
@@ -231,6 +248,8 @@ class SQIceGame {
 
         // propose a move satisfying the ice-rule
         // return a site
+
+        double get_coord(int site);
 
         // Transform between state and config
         void update_state_to_config();
@@ -277,6 +296,8 @@ class SQIceGame {
         // magic function compute periodic boundary condition
         int inline _pdb(int site, int d, int l) {return ((site + d) % l + l) % l;};
 
+        vector<int> _indices_to_sites1d(const vector<int> index);
+        inline int _index_to_site1d(int site) {return latt.site1d[site];};
 
         void _print_vector(const vector<double> &v);
         double _cal_mean(const vector<int> &s);
@@ -365,6 +386,9 @@ BOOST_PYTHON_MODULE(icegame)
     to_python_converter<std::vector<int, class std::allocator<int> >, Vec2List<int> >();
     to_python_converter<std::vector<double, class std::allocator<double> >, Vec2List<double> >();
 
+    //class_<IntList>("IntList")
+    //    .def(vector_indexing_suite<IntList>());
+
     class_<SQIceGame>("SQIceGame", init<INFO>())
         // Monte Carlo related
         .def("init_model", &SQIceGame::InitModel)
@@ -389,6 +413,11 @@ BOOST_PYTHON_MODULE(icegame)
         .def("flip_trajectory", &SQIceGame::FlipTrajectory)
         .def("update_config", &SQIceGame::UpdateConfig)
         .def("set_ice", &SQIceGame::SetIce)
+
+        // State Raw data
+        .def("get_state_t", &SQIceGame::GetStateT)
+        .def("get_state_tp1", &SQIceGame::GetStateTp1)
+        .def("get_sublatt", &SQIceGame::GetSublatt)
 
         // Observations
         .def("get_agent_site", &SQIceGame::GetAgentSite)

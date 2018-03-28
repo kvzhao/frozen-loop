@@ -30,9 +30,9 @@ SQIceGame::SQIceGame (INFO info) : sim_info(info) {
     updated_counter = 0;
     num_updates = 0;
 
-    mag_fields.push_back(h1_t);
-    mag_fields.push_back(h2_t);
-    mag_fields.push_back(h3_t);
+    mag_fields.emplace_back(h1_t);
+    mag_fields.emplace_back(h2_t);
+    mag_fields.emplace_back(h3_t);
 
     // initialze all the member data
     state_0.resize(N, 0);
@@ -101,7 +101,7 @@ void SQIceGame::update_state_to_config() {
         && _cal_energy_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_ENERGY) {
         std::cout << "[GAME] Updated Succesfully!\n";
         updated_counter++; 
-        accepted_looplength.push_back(diff);
+        accepted_looplength.emplace_back(diff);
         // Avoid periodic timeout mechanism rule out preferable results
     } else {
         std::cout << "[GAME] Ice Config is RUINED. Restore.\n";
@@ -361,16 +361,19 @@ void SQIceGame::flip_agent_state_tp1() {
 }
 
 // We should clearify the function name.
-void SQIceGame::flip_along_traj(const vector<int>& traj) {
+void SQIceGame::flip_along_trajectory(const vector<int>& traj) {
     // check traj is not empty
     // check traj is cont. or not
     // flip along traj on state_t
-    // done, return ?
+    // done, return what?
+    #ifdef DEBUG
+        std::cout << "Start flip along trajectory inside Game.\n";
+    #endif 
     if(!traj.empty()) {
         for (auto const & site : traj) {
             _flip_state_t_site(site);
             #ifdef DEBUG
-            std::cout << "Flip site " << site 
+            std::cout << "--> Flip site " << site 
                     << " and dE = " << _cal_energy_of_state(state_t) - _cal_energy_of_state(state_0)
                     << ", dd = " << _cal_defect_density_of_state(state_t) << endl;
             #endif
@@ -383,14 +386,13 @@ void SQIceGame::push_site_to_trajectory(int site) {
     if (site >= 0 && site < N) {
         // If starting point
         if (agent_site_trajectory.size() == 0) {
-            agent_site_trajectory.push_back(site);
-            agent_spin_trajectory.push_back(get_spin(site));
+            agent_site_trajectory.emplace_back(site);
+            agent_spin_trajectory.emplace_back(get_spin(site));
             init_agent_site = site;
-        } else if (!_is_visited(site)) {
-            agent_site_trajectory.push_back(site);
-            agent_spin_trajectory.push_back(get_spin(site));
         } else {
-            // visited site and do nothing
+            // TODO: REMOVE THIS CONSTRAINTS.
+            agent_site_trajectory.emplace_back(site);
+            agent_spin_trajectory.emplace_back(get_spin(site));
         }
     } else {
         std::cout << "[GAME] WORNING, Set Agent on Illegal Site!\n";
@@ -416,7 +418,6 @@ int SQIceGame::get_agent_spin() {
 }
 
 // GRAY ZONE.
-
 
 vector<double> SQIceGame::Draw(int dir_idx) {
     // The function handles canvas and calculates step-wise returns
@@ -513,7 +514,7 @@ int SQIceGame::go(int dir) {
 
     // action statistics only be counted when called by icegame_env.
     ep_action_counters[dir]++;
-    ep_action_list.push_back(dir);
+    ep_action_list.emplace_back(dir);
     action_statistics[dir]++;
 
     return agent_site;
@@ -636,7 +637,7 @@ vector<int> SQIceGame::get_neighbor_spins() {
     vector<int> nsites = get_neighbor_sites();
     vector<int> nspins;
     for(const auto& s : nsites) {
-        nspins.push_back(state_t[s]);
+        nspins.emplace_back(state_t[s]);
     }
     return nspins;
 }
@@ -692,12 +693,12 @@ vector<int> SQIceGame::get_local_candidates(bool same_spin) {
     vector<int> idxes;
     for (std::vector<int>::size_type i =0; i < nspins.size(); i++) {
         if (inverse_agent_spin == nspins[i]) {
-            idxes.push_back(i);
+            idxes.emplace_back(i);
         }
     }
     vector<int> candidates;
     for (auto const & idx : idxes) {
-        candidates.push_back(nsites[idx]);
+        candidates.emplace_back(nsites[idx]);
     }
     std::random_shuffle(candidates.begin(), candidates.end());
     // should i avoid repeating?
@@ -809,14 +810,37 @@ object SQIceGame::GetEnergyMap() {
     return float_wrap(energy_map);
 }
 
-object SQIceGame::GetStateTMap() {
-    vector<double> map(state_t.begin(), state_t.end());
-    return float_wrap(map);
+object SQIceGame::GetStateT() {
+    return int_wrap(state_t);
+}
+
+object SQIceGame::GetStateTp1() {
+    return int_wrap(state_tp1);
+}
+
+vector<int> SQIceGame::GetStateTMap() {
+    // WARING: BUGS!, Head of values would go crazy.
+    // It is safer for python to do the type conversion.
+    vector<int> ordered_state_t;
+    for (int i = 0; i < N; i++) {
+        int spin = state_t[latt.site1d[i]];
+        ordered_state_t.emplace_back(spin);
+        #ifdef false
+          std::cout << "index =  " << i 
+            << ", 1D: " << latt.site1d[i] 
+            << ", state_t = " << spin
+            << "; order_state = " << ordered_state_t[i]
+        << "\n";
+        #endif
+    }
+    return ordered_state_t;
+    //return int_wrap(ordered_state_t);
 }
 
 object SQIceGame::GetStateTp1Map() {
-    vector<double> map(state_tp1.begin(), state_tp1.end());
-    return float_wrap(map);
+    // WARING: BUGS!
+    vector<double> map_(state_tp1.begin(), state_tp1.end());
+    return float_wrap(map_);
 }
 
 object SQIceGame::GetStateTMapColor() {
@@ -912,7 +936,7 @@ object SQIceGame::GetValidActionMap() {
 }
 
 object SQIceGame::GetDefectMap() {
-    for (uint i =0; i < N; i++) {
+    for (int i =0; i < N; i++) {
         double dd = 0.0;
         if (latt.sub[i] == 1) {
             dd = abs(state_tp1[i] + state_tp1[latt.NN[i][0]] + state_tp1[latt.NN[i][1]] + state_tp1[latt.NNN[i][0]]);
@@ -1178,7 +1202,7 @@ vector<int> SQIceGame::LongLoopAlgorithm() {
     }
     #endif
 
-    return segments;
+    return _indices_to_sites1d(segments);
 }  
 
 
@@ -1267,4 +1291,12 @@ vector<int> SQIceGame::_end_sites(int site) {
         std::cout << "[GAME] WARNING: Ending condition fails!\n";
     }
     return ends;
+}
+
+vector<int> SQIceGame::_indices_to_sites1d(const vector<int> index) {
+    vector<int> site1d;
+    for (const auto &i : index) {
+        site1d.emplace_back(latt.site1d[i]);
+    }
+    return site1d;
 }
