@@ -526,21 +526,32 @@ void Checkerboard::construct_lattice(){
 	      break;
 	    }
       case 1:{
+	       //coor[i].x = (site3d[i].x + 1.0) * Bravais_a.x;
 	       coor[i].x = (site3d[i].x + 0.5) * Bravais_a.x;
 	       coor[i].y = site3d[i].y * Bravais_b.y;
 	      break;
 	    }
       case 2:{
+	       //coor[i].x = (site3d[i].x + 1.0) * Bravais_a.x;
+	       //coor[i].y = (site3d[i].y + 1.0) * Bravais_b.y;
 	       coor[i].x = (site3d[i].x + 0.5) * Bravais_a.x;
 	       coor[i].y = (site3d[i].y + 0.5) * Bravais_b.y;
 	      break;
 	    }
       case 3:{
 	       coor[i].x = site3d[i].x * Bravais_a.x;
+	       //coor[i].y = (site3d[i].y + 1.0) * Bravais_b.y;
 	       coor[i].y = (site3d[i].y + 0.5) * Bravais_b.y;
 	      break;
 	    }
     }
+  }
+  // Well, how about compute 1d site here?
+  for (int i=0; i < N; ++i) {
+      double x = coor[i].x;
+      double y = coor[i].y;
+      int s = int(2*(y * 2* L + x));
+      site1d.emplace_back(s);
   }
 }
 

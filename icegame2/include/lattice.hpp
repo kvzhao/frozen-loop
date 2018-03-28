@@ -47,6 +47,8 @@ class Lattice{
     vtr3d site_index3d;
     vtr2d site_index2d;
     vector<int> sub;
+    // only used for icegame
+    vector<int> site1d;
     Point3d* site3d;
     Point2d* site2d;
     Coordinates2d* coor;
