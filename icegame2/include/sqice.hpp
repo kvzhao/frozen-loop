@@ -38,11 +38,13 @@
 #include <numpy/ndarrayobject.h> // ensure you include this header
 
 //// Constants used in Icegame ////
-const int NUM_OF_ACTIONS = 9;
+const int NUM_OF_ACTIONS = 9; // TODO!
+
 const int METROPOLIS_PROPOSAL = 8;
 const int NULL_SITE = -1;
 const int SPIN_UP = 1;
 const int SPIN_DOWN = -1;
+const int NULL_SPIN = 0;
 
 const double SPIN_UP_SUBLATT_A = +0.75;
 const double SPIN_UP_SUBLATT_B = +0.25;
@@ -66,8 +68,21 @@ const double AGENT_OCCUPIED_VALUE = 1.0;
 //const double AGENT_FORESEE_SUBLATT_A = +0.75;
 //const double AGENT_FORESEE_SUBLATT_B = -0.75;
 
-enum class ActDir {RIGHT=0, DOWN, LEFT, UP,
-                LOWER_RIGHT, LOWER_LEFT, UPPER_LEFT, UPPER_RIGHT};
+const int MCSTEPS_TO_EQUILIBRIUM = 2000;
+
+const std::string empty_str = std::string();
+
+
+// NOTICE: Have to define this carefully (insightfully)
+enum class ActDir {
+    Head_0=0, // NN[0]
+    Head_1,   // NN[1]
+    Head_2,   // NN[2]
+    Tail_0,
+    Tail_1,
+    Tail_2,
+    NOOP
+};
 
 //// End of Constants ////
 
@@ -139,8 +154,12 @@ class SQIceGame {
         //    return:
         //        vector of [accept, dE, dd, dC]
 
+        // Use Move, instead of Draw
+        vector<double> Move(int dir_dix);
         vector<double> Draw(int dir_idx);
         vector<double> Flip();
+
+        vector<int> GuideAction();
 
         // Read the configuration from python and set to ice_config
         void SetIce(const boost::python::object &iter);
@@ -155,14 +174,17 @@ class SQIceGame {
         inline void InitAgentSite(int site) {put_agent(site);};
 
         int Start(int init_site);
-        int Restart(int init_site);
-        int Reset(int init_site);
+
+        // Two functions below are repeated.
+        int Reset(int init_site = 0);
         void ResetConfiguration();
 
         void ClearBuffer();
         void UpdateConfig();
+        inline void ShowInfo() {show_information();};
 
         inline int GetAgentSite() {return get_agent_site();};
+        inline int GetAgentSpin() {return get_agent_spin();};
 
         // Configurations (integer array)
         object GetStateT();
@@ -178,8 +200,7 @@ class SQIceGame {
                 which is handled by Vec2List.
         */
         vector<int> GetStateTMap();
-        //object GetStateTMap();
-        object GetStateTp1Map();
+        vector<int> GetStateTp1Map();
         object GetCanvasMap(); 
         object GetEnergyMap();
         object GetDefectMap();
@@ -193,7 +214,8 @@ class SQIceGame {
 
         void PrintLattice();
 
-        vector<double> GetNeighborSpins();
+        // These two are now wrapper functions
+        vector<int> GetNeighborSpins();
         vector<int> GetNeighborSites();
 
         vector<double> GetLocalSpins();
@@ -209,7 +231,6 @@ class SQIceGame {
         object GetAgentMap();
 
         // Statistical Informations
-        int GetStartPoint();
         inline unsigned long GetTotalSteps() {return num_total_steps;};
         inline unsigned long GetEpisode() {return num_episode;};
         inline int GetEpStepCounter() {return ep_step_counter;};
@@ -237,9 +258,10 @@ class SQIceGame {
 
         // SO THE FOLLOWING SHOULD BE MODIFIED.
         // return new agent site
+        // legacy codes
         int go (int dir);
         // NOTICE: this function is replaced by ask_guide in python.
-        int how_to_go(int site);
+        ActDir how_to_go(int site);
 
         // Agent Operations
         int put_agent(int site); //Purely put it on.
@@ -248,8 +270,6 @@ class SQIceGame {
 
         // propose a move satisfying the ice-rule
         // return a site
-
-        double get_coord(int site);
 
         // Transform between state and config
         void update_state_to_config();
@@ -261,8 +281,8 @@ class SQIceGame {
         void clear_lists();
 
         //TODO: UPDATE
-        int get_local_site_by_direction(int dir);
-        int get_direction_by_sites(int site, int next_site);
+        int get_site_by_direction(int dir);
+        ActDir get_direction_by_sites(int site, int next_site);
         
         // Neighbor is adjacent 8 sites
         vector<int> get_neighbor_sites();
@@ -270,6 +290,7 @@ class SQIceGame {
         // maybe we need a candidate for counter partner
 
         // Local contributes to energy
+        // TODO: update to new version
         vector<int> get_local_sites();
         vector<int> get_local_spins();
         vector<int> get_local_candidates(bool same_spin);
@@ -280,6 +301,7 @@ class SQIceGame {
         int  get_agent_site();
         int  get_agent_spin();
         int  get_spin(int site);
+        void show_information();
 
     private:
         // private functions
@@ -296,10 +318,13 @@ class SQIceGame {
         // magic function compute periodic boundary condition
         int inline _pdb(int site, int d, int l) {return ((site + d) % l + l) % l;};
 
-        vector<int> _indices_to_sites1d(const vector<int> index);
-        inline int _index_to_site1d(int site) {return latt.site1d[site];};
+        vector<int> _indices_to_sites1d(const vector<int> indices);
+        vector<int> _sites1d_to_indices(const vector<int> sites);
+        inline int _index_to_site1d(int index) {return latt.site1d[index];};
+        inline int _site1d_to_index(int site) {return latt.indices[site];};
 
-        void _print_vector(const vector<double> &v);
+        template <class T>
+        void _print_vector(const vector<T> &v, const std::string &s=empty_str);
         double _cal_mean(const vector<int> &s);
         double _cal_stdev(const vector<int> &s);
         bool _is_visited(int site);
@@ -308,9 +333,14 @@ class SQIceGame {
         bool _is_start_end_meets(int site);
 
         // Used for loop algorithm
+        // Note: site is different from index!
+        // OOOOOOOOO! Change index <-> site !!
         vector<int> _get_neighbor_of_site(int site);
+        vector<int> _get_neighbor_of_index(int index);
+
         vector<int> _end_sites(int site);
-        int _loop_extention(int, int);
+
+        int _loop_extention(int site);
         int _icerule_head_check(int site);
         int _icerule_tail_check(int site);
 
@@ -333,6 +363,9 @@ class SQIceGame {
 
         // RL intefaces
         int agent_site;
+        int start_spin; // used for loop
+        int start_site;
+        int init_agent_site; // is it used?
         vector<int> agent_site_trajectory;
         vector<int> agent_spin_trajectory;
 
@@ -342,16 +375,16 @@ class SQIceGame {
         unsigned long num_episode; // number of resets, TODO: Change point of views!
 
         unsigned long num_restarts;
-        unsigned long num_resets;
+        unsigned long num_resets; // number of reset configurations
 
         unsigned long num_updates; // number of calling Metropolis
         unsigned long updated_counter; // number of successfully updated
         int same_ep_counter; // records for playing the same game
 
-        int update_interval; // 
+        int update_interval; // not used, actually
 
-        int init_agent_site;
         unsigned int ep_step_counter; // counts steps each episode
+        // statistics information
         vector<int> ep_site_counters;
         vector<int> ep_action_counters;
         vector<int> ep_action_list;
@@ -364,6 +397,8 @@ class SQIceGame {
         vector<int> state_tp1;
 
         // Maps always use double for ml computation
+        // TODO: change these maps back to int
+        //      We convert them into np.float32 in python. (or make them colorful.)
         vector<double> agent_map;
         vector<double> canvas_traj_map;
         vector<double> canvas_spin_map;
@@ -398,16 +433,18 @@ BOOST_PYTHON_MODULE(icegame)
 
         // System commands
         .def("start", &SQIceGame::Start)
-        .def("restart", &SQIceGame::Restart)
         .def("reset", &SQIceGame::Reset)
         .def("reset_config", &SQIceGame::ResetConfiguration)
         .def("timeout", &SQIceGame::TimeOut)
         .def("print_lattice", &SQIceGame::PrintLattice)
-
         .def("clear_buffer", &SQIceGame::ClearBuffer)
 
         // REVISE, change the state
         .def("draw", &SQIceGame::Draw)
+        .def("move", &SQIceGame::Move)
+        .def("flip", &SQIceGame::Flip)
+        .def("guide_action", &SQIceGame::GuideAction)
+
         .def("metropolis", &SQIceGame::Metropolis)
         .def("init_agent_site", &SQIceGame::InitAgentSite)
         .def("flip_trajectory", &SQIceGame::FlipTrajectory)
@@ -421,6 +458,7 @@ BOOST_PYTHON_MODULE(icegame)
 
         // Observations
         .def("get_agent_site", &SQIceGame::GetAgentSite)
+        .def("get_agent_spin", &SQIceGame::GetAgentSpin)
         .def("get_agent_map", &SQIceGame::GetAgentMap)
         .def("get_canvas_map", &SQIceGame::GetCanvasMap)
         .def("get_state_t_map", &SQIceGame::GetStateTMap)
@@ -438,7 +476,7 @@ BOOST_PYTHON_MODULE(icegame)
         .def("get_phy_observables", &SQIceGame::GetPhyObservables)
 
         // Game information
-        .def("get_start_point", &SQIceGame::GetStartPoint)
+        .def("show_info", &SQIceGame::ShowInfo)
         .def("get_total_steps", &SQIceGame::GetTotalSteps)
         .def("get_episode", &SQIceGame::GetEpisode)
         .def("get_ep_step_counter", &SQIceGame::GetEpStepCounter)

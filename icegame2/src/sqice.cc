@@ -29,6 +29,7 @@ SQIceGame::SQIceGame (INFO info) : sim_info(info) {
     same_ep_counter = 0;
     updated_counter = 0;
     num_updates = 0;
+    num_resets = 0;
 
     mag_fields.emplace_back(h1_t);
     mag_fields.emplace_back(h2_t);
@@ -135,8 +136,11 @@ void SQIceGame::SetTemperature(double T) {
 }
 
 void SQIceGame::ResetConfiguration() {
+    // refresh the configuration
     std::fill(ice_config.Ising.begin(), ice_config.Ising.end(), 1);
-    MCRun(2000);
+    // Run SSF Update again.
+    MCRun(MCSTEPS_TO_EQUILIBRIUM);
+    Reset();
 }
 
 void SQIceGame::SetIce(const boost::python::object &iter) {
@@ -221,8 +225,12 @@ void SQIceGame::MCRun(int mcSteps) {
 }
 
 // Start: Just put the agent on the site
+// Or: We use put and flip?
 int SQIceGame::Start(int init_site) {
     int ret = put_agent(init_site);
+    // Do we need to flip?, no
+    start_spin = get_agent_spin();
+    // But we would call loop algo
     if (ret != agent_site) { 
         std::cout << "[GAME] WARNING: Start() get wrong init_site!\n";
     }
@@ -234,27 +242,14 @@ void SQIceGame::ClearBuffer() {
     same_ep_counter++;
 }
 
-// Reset: Generate a new initial state
+// Reset: Clear buffer and 
 int SQIceGame::Reset(int init_site) {
     ClearBuffer();
-
-    //TODO: Create the new starting state
-    MCRun(2000);
-
-    // push_agent_site(init_site);
-    // Not sure what it is doing
-
-    same_ep_counter = 0;
-    num_episode++;
-    return agent_site;
-}
-
-// Restart: Back to the same initail state
-int SQIceGame::Restart(int init_site) {
-    ClearBuffer();
     Start(init_site);
+
     same_ep_counter = 0;
     num_episode++;
+
     return agent_site;
 }
 
@@ -264,15 +259,6 @@ void SQIceGame::clear_all() {
     clear_counters();
     restore_config_to_state();
     init_agent_site = agent_site;
-}
-
-int SQIceGame::GetStartPoint() {
-    if (agent_site_trajectory.size() != 0) {
-        if (init_agent_site != agent_site_trajectory[0]) {
-            std::cout << "[Game] Sanity check fails! init_agent_site != trajectory[0]!\n";
-        }
-    }
-    return init_agent_site;
 }
 
 // member functions 
@@ -319,8 +305,9 @@ int SQIceGame::_flip_state_tp1_site(int site) {
     // maybe we need cal some info when flipping
     int spin = 0;
     if(site >= 0 && site < N) {
-        state_tp1[site] *= -1;
-        spin = state_tp1[site];
+        int index = _site1d_to_index(site);
+        state_tp1[index] *= -1;
+        spin = state_tp1[index];
     } else {
         std::cout << "[GAME] WARNING: You try to flip #"
                   << site 
@@ -333,8 +320,9 @@ int SQIceGame::_flip_state_t_site(int site) {
     // DANGER!, we shoud carefully use this function.
     int spin = 0;
     if(site >= 0 && site < N) {
-        state_tp1[site] *= -1;
-        spin = state_tp1[site];
+        int index = _site1d_to_index(site);
+        state_t[index] *= -1;
+        spin = state_t[index];
     } else {
         std::cout << "[GAME] WARNING: You try to flip #"
                   << site 
@@ -408,7 +396,8 @@ int SQIceGame::get_spin(int site) {
     // NOTE: We get the state_tp1 spin!
     int spin = 0;
     if(site >= 0 && site < N) {
-        spin = state_tp1[site];
+        int idx = _site1d_to_index(site);
+        spin = state_tp1[idx];
     }
     return spin;
 }
@@ -419,6 +408,18 @@ int SQIceGame::get_agent_spin() {
 
 // GRAY ZONE.
 
+vector<double> SQIceGame::Move(int dir_idx) {
+    // Move and Flip?
+    vector<double> rets;
+    int new_site = get_site_by_direction(dir_idx);
+    int new_agent_site = put_and_flip_agent(new_site);
+    if (new_site != new_agent_site) {
+        std::cout << "[GAME] Warning! Put agent on wrong site!\n";
+    }
+    return rets;
+}
+
+// TO BE REMOVED.
 vector<double> SQIceGame::Draw(int dir_idx) {
     // The function handles canvas and calculates step-wise returns
     // TODO Extend action to 8 dir
@@ -426,7 +427,7 @@ vector<double> SQIceGame::Draw(int dir_idx) {
     vector<double> rets(4);
     // get where to go
     // NOTICE: get_spin returns state_tp1 spin
-    int next_spin = get_spin(get_local_site_by_direction(dir_idx));
+    int next_spin = get_spin(get_site_by_direction(dir_idx));
     // move agent
     int site = go(dir_idx);
 
@@ -466,41 +467,18 @@ vector<double> SQIceGame::Draw(int dir_idx) {
 }
 
 vector<double> SQIceGame::Flip() {
-    /* !!! This function is DEPRECIATED. !!!*/
-    vector<double> rets(4);
+    // Flip: usually used as initialization, defect creation.
+    vector<double> rets;
+
     // Flip the current agent site.
-    int site = agent_site;
-    agent_map[site] = OCCUPIED_MAP_VALUE; 
-
-    // Flip no matter how.
-    state_tp1[site] *= -1;
-
-    num_total_steps++;
-    ep_step_counter++;
-    ep_site_counters[site]++;
-
-    // draw on canvas TODO: no repeats
-    if (canvas_traj_map[site] == EMPTY_MAP_VALUE) {
-        // TODO: distinguish AB sublattice
-        if (latt.sub[site] == 1) {
-            canvas_traj_map[site] = OCCUPIED_MAP_VALUE;
-        } else {
-            canvas_traj_map[site] = - OCCUPIED_MAP_VALUE;
-        }
-    }
-
-    canvas_spin_map[site] = double(state_t[site]);
+    flip_agent();
 
     double dE = _cal_energy_of_state(state_tp1) - _cal_energy_of_state(state_t);
-    double dd = _cal_defect_density_of_state(state_tp1);
-
-    // TODO: compare t and tp1
+    //double dd = _cal_defect_density_of_state(state_tp1);
     double dC = _count_config_difference(state_t, state_tp1) / double(N);
 
-    rets[0] = REJECT_VALUE;
-    rets[1] = dE; 
-    rets[2] = dd;
-    rets[3] = dC;
+    rets.emplace_back(dE);
+    rets.emplace_back(dC);
 
     return rets;
 }
@@ -508,7 +486,7 @@ vector<double> SQIceGame::Flip() {
 int SQIceGame::go(int dir) {
     // One of the core function.
     // this function handles moveing, so the ep_action should be counted.
-    int new_site = get_local_site_by_direction(dir);
+    int new_site = get_site_by_direction(dir);
 
     int agent_site = put_and_flip_agent(new_site);
 
@@ -547,6 +525,7 @@ int SQIceGame::flip_agent() {
 
     // Flipping is the formal action, so we need to count in ep. counters.
     num_total_steps++;
+    same_ep_counter++;
     ep_step_counter++;
     ep_site_counters[agent_site]++;
 
@@ -567,15 +546,14 @@ int SQIceGame::put_and_flip_agent(int site) {
     return ret_site;
 }
 
-
-int SQIceGame::how_to_go(int site) {
-    int dir = get_direction_by_sites(agent_site, site);
+ActDir SQIceGame::how_to_go(int site) {
+    // Direction --> Site Mapping
+    ActDir dir = get_direction_by_sites(agent_site, site);
     return dir;
 }
 
-vector<double> SQIceGame::GetNeighborSpins() {
-    // TODO:
-    vector<double> neighbor_spins(9);
+vector<int> SQIceGame::GetNeighborSpins() {
+    return get_neighbor_spins();
 }
 
 vector<double> SQIceGame::GetLocalSpins() {
@@ -625,6 +603,9 @@ vector<double> SQIceGame::GetPhyObservables() {
     obs[0] = eng_density;
     obs[1] = config_diff_ratio;
     //obs[1] = def_density;
+
+    // Do we need energy difference?
+
     return obs;
 }
 
@@ -637,19 +618,35 @@ vector<int> SQIceGame::get_neighbor_spins() {
     vector<int> nsites = get_neighbor_sites();
     vector<int> nspins;
     for(const auto& s : nsites) {
-        nspins.emplace_back(state_t[s]);
+        int idx = _site1d_to_index(s);
+        // NOTE: Use tp1 rather than t?
+        nspins.emplace_back(state_tp1[idx]);
     }
     return nspins;
 }
 
 vector<int> SQIceGame::_get_neighbor_of_site(int _site) {
+    // Get neighboring sites by given site
+    int index = _site1d_to_index(_site);
     vector<int> locals(6);
-    locals[0] = latt.NN[_site][0];
-    locals[1] = latt.NN[_site][1];
-    locals[2] = latt.NN[_site][2];
-    locals[3] = latt.NN[_site][3];
-    locals[4] = latt.NN[_site][4];
-    locals[5] = latt.NN[_site][5];
+    locals[0] = _index_to_site1d(latt.NN[index][0]);
+    locals[1] = _index_to_site1d(latt.NN[index][1]);
+    locals[2] = _index_to_site1d(latt.NN[index][2]);
+    locals[3] = _index_to_site1d(latt.NN[index][3]);
+    locals[4] = _index_to_site1d(latt.NN[index][4]);
+    locals[5] = _index_to_site1d(latt.NN[index][5]);
+    return locals;
+}
+
+vector<int> SQIceGame::_get_neighbor_of_index(int index) {
+    // Get neighboring indices by given indices
+    vector<int> locals(6);
+    locals[0] = latt.NN[index][0];
+    locals[1] = latt.NN[index][1];
+    locals[2] = latt.NN[index][2];
+    locals[3] = latt.NN[index][3];
+    locals[4] = latt.NN[index][4];
+    locals[5] = latt.NN[index][5];
     return locals;
 }
 
@@ -664,6 +661,7 @@ vector<int> SQIceGame::get_neighbor_sites() {
 }
 
 vector<int> SQIceGame::get_local_spins() {
+    // LEGACY CODE
     vector<int> locals(6);
     locals[0] = state_t[latt.NN[agent_site][0]];
     locals[1] = state_t[latt.NN[agent_site][1]];
@@ -706,92 +704,58 @@ vector<int> SQIceGame::get_local_candidates(bool same_spin) {
 }
 
 // TODO::WARNING: OLD CONVENTIONS!
-int SQIceGame::get_local_site_by_direction(int dir_idx) {
+int SQIceGame::get_site_by_direction(int dir_idx) {
     int site = agent_site;
     // c++11 method for casting
     auto dir = static_cast<ActDir>(dir_idx);
-    // TODO: 6 action -> 8 actions
-    // TODO: Checkerboard lattice!
+
+    // Get the neighboring sites
+    vector<int> neighbors = get_neighbor_sites();
+    // print for checking
+    int new_site;
     switch (dir) {
-        case ActDir::RIGHT:
-            site = latt.NN[site][0];
+        case ActDir::Head_0:
+            new_site = neighbors[0];
             break;
-        case ActDir::DOWN:
-            site = latt.NN[site][1];
+        case ActDir::Head_1:
+            new_site = neighbors[1];
             break;
-        case ActDir::LEFT:
-            site = latt.NN[site][2];
+        case ActDir::Head_2:
+            new_site = neighbors[2];
             break;
-        case ActDir::UP:
-            site = latt.NN[site][3];
+        case ActDir::Tail_0:
+            new_site = neighbors[3];
             break;
-        case ActDir::LOWER_RIGHT:
-            site = latt.NNN[site][0];
+        case ActDir::Tail_1:
+            new_site = neighbors[4];
             break;
-        case ActDir::LOWER_LEFT:
-            site = latt.NNN[site][1];
+        case ActDir::Tail_2:
+            new_site = neighbors[5];
             break;
-        case ActDir::UPPER_LEFT:
-            site = latt.NNN[site][2];
-            break;
-        case ActDir::UPPER_RIGHT:
-            site = latt.NNN[site][3];
+
+        default:
+            new_site = site; // not move
             break;
     }
 
-    // others recognized as no-op (just stay the same site)
+    // Find new site according to the sublattice
+
     //#ifdef DEBUG
     std::cout << "get_neighbor_site_by_direction(dir=" << dir_idx << ") = " 
-                << site << " with agent site = " << agent_site << " \n";
+                << new_site << " with agent site = " << agent_site << " \n";
     //#endif
-    return site;
+    return new_site;
 }
 
 // Maybe we can implement a ask_guide here.
-int SQIceGame::get_direction_by_sites(int site, int next_site) {
-    int right_site = latt.NN[site][0];
-    int left_site = latt.NN[site][2];
-    int up_site = latt.NN[site][3];
-    int down_site = latt.NN[site][1];
-    int upper_next_site = NULL_SITE;
-    int lower_next_site = NULL_SITE;
-    if (latt.sub[site] == 1) {
-        lower_next_site = latt.NNN[site][0];
-        upper_next_site = latt.NNN[site][2];
-    } else {
-        lower_next_site = latt.NNN[site][1];
-        upper_next_site = latt.NNN[site][3];
-    }
-
-    int dir = -1;
-    // check next state is in its neighbots
-    // BRUTAL FORCE
-    if (next_site == right_site) {
-        dir = 0;
-    } else if (next_site == left_site) {
-        dir = 2;
-    } else if (next_site == up_site) {
-        dir = 3;
-    } else if (next_site == down_site) {
-        dir  = 1;
-    } else if (next_site == upper_next_site) {
-        dir = 5;
-    } else if (next_site == lower_next_site) {
-        dir = 4;
-    } else {
-        dir = 7; // index 7 is a no-operation
-    }
-
-    #ifdef DEBUG
-    std::cout << "get_direction_by_sites(site=" << site << ", next=" << next_site << " ): its neighbors are "
-                << "right site = " << right_site << "\n"
-                << "left site = " << left_site << "\n"
-                << "up site = " << up_site << "\n"
-                << "down site = " << down_site << "\n"
-                << "upper next site = " << upper_next_site << "\n"
-                << "lower next site = " << lower_next_site << "\n";
-    #endif
-
+/*
+    Move: directional index is designed as
+      * head dir
+      * tail dir
+*/
+ActDir SQIceGame::get_direction_by_sites(int site, int next_site) {
+    // What do we get?, site should be site
+    ActDir dir;
     return dir;
 }
 
@@ -834,13 +798,15 @@ vector<int> SQIceGame::GetStateTMap() {
         #endif
     }
     return ordered_state_t;
-    //return int_wrap(ordered_state_t);
 }
 
-object SQIceGame::GetStateTp1Map() {
-    // WARING: BUGS!
-    vector<double> map_(state_tp1.begin(), state_tp1.end());
-    return float_wrap(map_);
+vector<int> SQIceGame::GetStateTp1Map() {
+    vector<int> ordered_state_tp1;
+    for (int i = 0; i < N; i++) {
+        int spin = state_tp1[latt.site1d[i]];
+        ordered_state_tp1.emplace_back(spin);
+    }
+    return ordered_state_tp1;
 }
 
 object SQIceGame::GetStateTMapColor() {
@@ -1027,8 +993,9 @@ double SQIceGame::_cal_stdev(const vector<int> &s) {
     return stdev;
 }
 
-void SQIceGame::_print_vector(const vector<double> &v) {
-    std::cout << "[";
+template <class T>
+void SQIceGame::_print_vector(const vector<T> &v, const std::string &prefix) {
+    std::cout << prefix << ": [";
     for (const auto &i: v)
         std::cout << i << ", ";
     std::cout << "]\n";
@@ -1054,10 +1021,9 @@ bool SQIceGame::_is_traj_continuous() {
     // check next site is in its neighbors
     for (std::vector<int>::size_type i = 1;  i < agent_site_trajectory.size(); i++) {
         std::cout << "step " << i << endl;
-        int dir = get_direction_by_sites(agent_site_trajectory[i-1], agent_site_trajectory[i]); 
-        std::cout << "From " << agent_site_trajectory[i-1] << " to " << agent_site_trajectory[i] 
-                << " is done by action " << dir << "\n"; 
-        if (dir == -1) {
+        ActDir dir = get_direction_by_sites(agent_site_trajectory[i-1], agent_site_trajectory[i]); 
+        std::cout << "From " << agent_site_trajectory[i-1] << " to " << agent_site_trajectory[i] << "\n";
+        if (dir == ActDir::NOOP) {
             cont = false;
             break;
         }
@@ -1090,7 +1056,7 @@ int SQIceGame::_cal_config_t_difference() {
 int SQIceGame::_count_config_difference(const vector<int> &c1, const vector<int> &c2) {
     // Navie method compute the difference of two configurations
     int counter = 0;
-    for (size_t i = 0 ; i < N; i++) {
+    for (int i = 0 ; i < N; i++) {
         if (c1[i] != c2[i]) {
             counter++;
         }
@@ -1101,15 +1067,21 @@ int SQIceGame::_count_config_difference(const vector<int> &c1, const vector<int>
 vector<int> SQIceGame::LongLoopAlgorithm() {
     // Return the list of proposed sites according to ice rule.
     // Think more deeperly about the usage of this function.
+    // Use sites here!
     std::cout << "[GAME] Execute the Long Loop Algorithm.\n";
 
     vector<int> segments;
 
-    int start_site = get_agent_site();
-    vector<int> neighbors = get_neighbor_sites();
+    start_site = get_agent_site();
+    vector<int> neighbor_sites = get_neighbor_sites();
     // We update the state_tp1, right?
     int head_sum = _icerule_head_check(start_site);
     int tail_sum = _icerule_tail_check(start_site);
+
+    #ifdef DEBUG
+      std::cout << "Stating spin (before): " << get_agent_spin() << "\n";
+      std::cout << "\t head = " << head_sum << ", tail = " << tail_sum << "\n";
+    #endif
 
     // Check the starting point is legal
     bool is_safe = false;
@@ -1119,22 +1091,34 @@ vector<int> SQIceGame::LongLoopAlgorithm() {
             std::cout << "IceRule starting point: " << start_site << "\n";
         #endif
     } else {
+        // False alarm occurs
         std::cout << "[GAME] WARNING!, starting point breaks ice rule, head = "
                 << head_sum
                 << ", tail= "
-                << tail_sum << "\n";
+                << tail_sum 
+                << ", E = " 
+                << _cal_energy_of_state(state_tp1)
+                << "\n";
     }
 
     // Save the ending condition
-    vector<int> endsites = _end_sites(start_site);
+    vector<int> end_sites = _end_sites(start_site);
     #ifdef DEBUG
-        std::cout << "Ending sites are " 
-                  << endsites[0] << ", "
-                  << endsites[1] << ".\n";
+        std::cout << "Starting site: "
+                  << start_site
+                  << ", Ending sites are " 
+                  << end_sites[0] << ", "
+                  << end_sites[1] << ".\n";
+        _print_vector(get_neighbor_sites(), "Neighbor Sites");
+        _print_vector(get_neighbor_spins(), "Neighbor Spins (Before flipping)");
     #endif
 
     // Flip on site and start Loop Algorithm.
     put_and_flip_agent(start_site);
+    #ifdef DEBUG
+      std::cout << "Stating spin (after): " << get_agent_spin() << "\n";
+      _print_vector(get_neighbor_spins(), "Starting Neighbor Spins Flipped");
+    #endif
 
     // === LOOP ALGORITHM === //
     bool stop = false;
@@ -1146,14 +1130,15 @@ vector<int> SQIceGame::LongLoopAlgorithm() {
         3: timeout
     */
     unsigned int lcter = 0; // loop counter
-    int start_spin = get_agent_spin();
+    start_spin = get_agent_spin(); //Now, start spin is the member data
     segments.emplace_back(start_site);
     int curr_site = start_site;
     int new_site = 0;
     do {
         lcter++;
 
-        new_site = _loop_extention(curr_site, start_spin);
+        // TODO: How to prevent extention failures.
+        new_site = _loop_extention(curr_site);
 
         // Several nested conditions 
         //  * Stop conditions: termination, defect
@@ -1167,16 +1152,30 @@ vector<int> SQIceGame::LongLoopAlgorithm() {
             // Timeout when walks more than num of sites.
             stop = true;
             status = 3;
-        } else if ((new_site == endsites[0]) || (new_site == endsites[1])) {
+        } else if ((new_site == end_sites[0]) || (new_site == end_sites[1])) {
+            // It may meet the starting point?
             // Long loop is created.
             status = 1;
             segments.emplace_back(new_site);
+            /// OOOOO! BUG: the 'Actual' site used here
             put_and_flip_agent(new_site);
+            #ifdef DEBUG
+              std::cout << "\tAgent spin: " << get_agent_spin() << "\n";
+              _print_vector(get_neighbor_sites(), "\tNeighbor Sites");
+              _print_vector(get_neighbor_spins(), "\tNeighbor Spins (Before flipping)");
+              std::cout << "\tE = " << _cal_energy_of_state(state_tp1) << "\n";
+            #endif
             stop = true;
         } else {
             // Grow the loop as usual.
             segments.emplace_back(new_site);
             put_and_flip_agent(new_site);
+            #ifdef DEBUG
+              std::cout << "\tAgent spin: " << get_agent_spin() << "\n";
+              _print_vector(get_neighbor_sites(), "\tNeighbor Sites");
+              _print_vector(get_neighbor_spins(), "\tNeighbor Spins (Before flipping)");
+              std::cout << "\tE = " << _cal_energy_of_state(state_tp1) << "\n";
+            #endif
         }
 
         // update to new_site 
@@ -1202,32 +1201,108 @@ vector<int> SQIceGame::LongLoopAlgorithm() {
     }
     #endif
 
-    return _indices_to_sites1d(segments);
+    return segments;
 }  
 
+vector<int> SQIceGame::GuideAction() {
+    //Args:
+    //  * According to given site and corresponding spin, giving guides.
+    //  * return vector of candidates of action
+    // * But this function can be more tricky, that energy should be considered.
+    // ** Hope this function is modified to propose one step which doesnt change energy.
+    vector<int> candidates;
+    int curr_site = agent_site;
+    int curr_idx = _site1d_to_index(curr_site);
 
-int SQIceGame::_loop_extention(int curr_site, int start_spin){
-    int new_site = -1;
-
-    int icerule_sum;
     int s1, s2, s3, n1, n2, n3;
+    // latt returns index
+    bool is_head = false;
     if (get_spin(curr_site) == start_spin) {
         // spin up
-        n1 = latt.NN[curr_site][3];
-        n2 = latt.NN[curr_site][4];
-        n3 = latt.NN[curr_site][5];
+        n1 = latt.NN[curr_idx][3];
+        n2 = latt.NN[curr_idx][4];
+        n3 = latt.NN[curr_idx][5];
+        is_head = false;
     } else {
         // spin down
-        n1 = latt.NN[curr_site][0];
-        n2 = latt.NN[curr_site][1];
-        n3 = latt.NN[curr_site][2];
+        n1 = latt.NN[curr_idx][0];
+        n2 = latt.NN[curr_idx][1];
+        n3 = latt.NN[curr_idx][2];
+        is_head = true;
     }
-    int s0 = state_tp1[curr_site];
+    int s0 = state_tp1[curr_idx];
     s1 = state_tp1[n1];
     s2 = state_tp1[n2];
     s3 = state_tp1[n3];
     // handy way to check rule
-    icerule_sum = -1*s0 + s1 + s2 + s3;
+    int icerule_sum = -1*s0 + s1 + s2 + s3;
+
+    if (icerule_sum == 0) {
+        // Head or Tail
+        if (is_head) {
+            if (s1 == s2) {
+                // Choose n1, n2
+                candidates.emplace_back(static_cast<int>(ActDir::Head_0));
+                candidates.emplace_back(static_cast<int>(ActDir::Head_1));
+            } else if (s2 == s3) {
+                // Choose n2, n3
+                candidates.emplace_back(static_cast<int>(ActDir::Head_1));
+                candidates.emplace_back(static_cast<int>(ActDir::Head_2));
+            } else if (s3 == s1) {
+                // Choose n1, n3
+                candidates.emplace_back(static_cast<int>(ActDir::Head_0));
+                candidates.emplace_back(static_cast<int>(ActDir::Head_2));
+            }
+        } else {
+            // Tail
+            if (s1 == s2) {
+                // Choose n1, n2
+                candidates.emplace_back(static_cast<int>(ActDir::Tail_0));
+                candidates.emplace_back(static_cast<int>(ActDir::Tail_1));
+            } else if (s2 == s3) {
+                // Choose n2, n3
+                candidates.emplace_back(static_cast<int>(ActDir::Tail_1));
+                candidates.emplace_back(static_cast<int>(ActDir::Tail_2));
+            } else if (s3 == s1) {
+                // Choose n1, n3
+                candidates.emplace_back(static_cast<int>(ActDir::Tail_0));
+                candidates.emplace_back(static_cast<int>(ActDir::Tail_2));
+            }
+        }
+    } else {
+        std::cout << "[GAME] Guide action fails!\n"; // show or not?
+        candidates.emplace_back(NULL_SITE);
+    }
+
+    return candidates;
+}
+
+int SQIceGame::_loop_extention(int curr_site){
+    // NOTE: site in this function means index.
+    // NOTE: in some sense, this function do suggestion
+    int new_site = NULL_SITE;
+    int new_idx = NULL_SITE;
+    int curr_idx = _site1d_to_index(curr_site);
+
+    int s1, s2, s3, n1, n2, n3;
+    // latt returns index
+    if (get_spin(curr_site) == start_spin) {
+        // spin up
+        n1 = latt.NN[curr_idx][3];
+        n2 = latt.NN[curr_idx][4];
+        n3 = latt.NN[curr_idx][5];
+    } else {
+        // spin down
+        n1 = latt.NN[curr_idx][0];
+        n2 = latt.NN[curr_idx][1];
+        n3 = latt.NN[curr_idx][2];
+    }
+    int s0 = state_tp1[curr_idx];
+    s1 = state_tp1[n1];
+    s2 = state_tp1[n2];
+    s3 = state_tp1[n3];
+    // handy way to check rule
+    int icerule_sum = -1*s0 + s1 + s2 + s3;
 
     #ifdef DEBUG
         std::cout << "site: " << curr_site 
@@ -1237,33 +1312,39 @@ int SQIceGame::_loop_extention(int curr_site, int start_spin){
     if (icerule_sum == 0) {
         double dice = uni01_sampler();
         if (s1 == s2) {
-            new_site = dice > 0.5 ? n1 : n2;
+            new_idx = dice > 0.5 ? n1 : n2;
         } else if (s2 == s3) {
-            new_site = dice > 0.5 ? n2 : n3;
+            new_idx = dice > 0.5 ? n2 : n3;
         } else if (s3 == s1) {
-            new_site = dice > 0.5 ? n3 : n1;
+            new_idx = dice > 0.5 ? n3 : n1;
         }
+        new_site = _index_to_site1d(new_idx);
     } else {
         std::cout << "[GAME] __extention fails!\n";
-        new_site = -1;
+        new_idx = NULL_SITE;
+        new_site = NULL_SITE;
     }
+    // map index back to site
 
     return new_site;
 }
 
 int SQIceGame::_icerule_head_check(int site) {
-    vector<int> neighbors = _get_neighbor_of_site(site);
-    int sum = state_tp1[site] + 
+    //TODO: Change to index based function!
+    vector<int> neighbors = _get_neighbor_of_index(_site1d_to_index(site));
+    int idx = _site1d_to_index(site);
+    int sum = state_tp1[idx] + 
                 state_tp1[neighbors[0]] + 
                 state_tp1[neighbors[1]] + 
                 state_tp1[neighbors[2]];
     return sum;
 }
 
-
 int SQIceGame::_icerule_tail_check(int site) {
-    vector<int> neighbors = _get_neighbor_of_site(site);
-    int sum = state_tp1[site] + 
+    // get indices of the given site
+    vector<int> neighbors = _get_neighbor_of_index(_site1d_to_index(site));
+    int idx = _site1d_to_index(site);
+    int sum = state_tp1[idx] + 
                 state_tp1[neighbors[3]] + 
                 state_tp1[neighbors[4]] + 
                 state_tp1[neighbors[5]];
@@ -1272,9 +1353,11 @@ int SQIceGame::_icerule_tail_check(int site) {
 
 vector<int> SQIceGame::_end_sites(int site) {
     // Get the ending sites of the loop
-    int NN0 = latt.NN[site][0];
-    int NN1 = latt.NN[site][1];
-    int NN2 = latt.NN[site][2];
+    int idx = _site1d_to_index(site);
+    // the following are indices
+    int NN0 = latt.NN[idx][0];
+    int NN1 = latt.NN[idx][1];
+    int NN2 = latt.NN[idx][2];
     vector<int> ends(2);
     if (state_tp1[NN0] == state_tp1[NN1]) {
         ends[0] = NN0;
@@ -1290,13 +1373,40 @@ vector<int> SQIceGame::_end_sites(int site) {
         ends[1] = -1;
         std::cout << "[GAME] WARNING: Ending condition fails!\n";
     }
-    return ends;
+    // map back to sites
+    return _indices_to_sites1d(ends);
 }
 
-vector<int> SQIceGame::_indices_to_sites1d(const vector<int> index) {
+vector<int> SQIceGame::_indices_to_sites1d(const vector<int> indices) {
     vector<int> site1d;
-    for (const auto &i : index) {
+    for (const auto &i : indices) {
         site1d.emplace_back(latt.site1d[i]);
     }
     return site1d;
+}
+
+vector<int> SQIceGame::_sites1d_to_indices(const vector<int> sites) {
+    vector<int> indices;
+    for (const auto &s : sites) {
+        indices.emplace_back(latt.indices[s]);
+    }
+    return indices;
+}
+
+void SQIceGame::show_information() {
+    // Game information
+    std::cout << "Game information --- \n";
+    std::cout << "\tGlobal step: " << num_total_steps << " - Local step: "
+        << same_ep_counter << " in " << num_episode << " episode.\n";
+    std::cout << "\t Number of configuration resets: " << num_resets << "\n";
+    std::cout << "\t Number of successful updates: " <<  updated_counter << "\n";
+
+    // Agent information
+    std::cout << "Agent information --- \n";
+    std::cout << "\tAgent site: " << agent_site  << " with spin: " << get_agent_spin() << "\n";
+    _print_vector(get_neighbor_sites(), "\tNeighbor sites");
+    _print_vector(get_neighbor_spins(), "\tNeighbor spins");
+    _print_vector(GuideAction(), "\tAction suggestions");
+    std::cout << "\tEnergy Density = " << _cal_energy_of_state(state_tp1) << "\n";
+    // How about some statistics information? // majorly processed in pyhton.
 }
