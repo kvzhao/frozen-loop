@@ -547,11 +547,14 @@ void Checkerboard::construct_lattice(){
     }
   }
   // Well, how about compute 1d site here?
+  // ... and we need inverse mapping
+  indices.reserve(N);
   for (int i=0; i < N; ++i) {
       double x = coor[i].x;
       double y = coor[i].y;
       int s = int(2*(y * 2* L + x));
       site1d.emplace_back(s);
+      indices[s] = i;
   }
 }
 
