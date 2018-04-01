@@ -187,8 +187,11 @@ class SQIceGame {
         inline int GetAgentSpin() {return get_agent_spin();};
 
         // Configurations (integer array)
-        object GetStateT();
-        object GetStateTp1();
+        // NOTICE: They are not ordered!
+        inline vector<int> GetStateT() {return state_t;};
+        inline vector<int> GetStateTp1() {return state_tp1;};
+        vector<int> GetStateDiff();
+
         inline object GetSublatt() {return int_wrap(latt.sub);};
 
         // Mini maps
@@ -201,11 +204,13 @@ class SQIceGame {
         */
         vector<int> GetStateTMap();
         vector<int> GetStateTp1Map();
+        vector<int> GetStateDiffMap();
+
+        // LEGACY
         object GetCanvasMap(); 
         object GetEnergyMap();
         object GetDefectMap();
         object GetSublattMap();
-
         object GetLocalMap(); // WARNNING: empty function now.
 
 
@@ -411,6 +416,7 @@ class SQIceGame {
 
 };
 
+// icegame --> icegame2 ?, well it's okay
 BOOST_PYTHON_MODULE(icegame)
 {
     class_<INFO>("INFO", init<int, int, int, int, int, int, int, int>())
@@ -454,26 +460,34 @@ BOOST_PYTHON_MODULE(icegame)
         // State Raw data
         .def("get_state_t", &SQIceGame::GetStateT)
         .def("get_state_tp1", &SQIceGame::GetStateTp1)
+        .def("get_state_diff", &SQIceGame::GetStateDiff)
         .def("get_sublatt", &SQIceGame::GetSublatt)
 
         // Observations
+
+        // Updated
         .def("get_agent_site", &SQIceGame::GetAgentSite)
         .def("get_agent_spin", &SQIceGame::GetAgentSpin)
         .def("get_agent_map", &SQIceGame::GetAgentMap)
         .def("get_canvas_map", &SQIceGame::GetCanvasMap)
         .def("get_state_t_map", &SQIceGame::GetStateTMap)
         .def("get_state_tp1_map", &SQIceGame::GetStateTp1Map)
-        .def("get_state_t_map_color", &SQIceGame::GetStateTMapColor)
-        .def("get_state_tp1_map_color", &SQIceGame::GetStateTp1MapColor)
+        .def("get_state_diff_map", &SQIceGame::GetStateDiffMap)
+
+        .def("get_neighbor_spins", &SQIceGame::GetNeighborSpins)
+        .def("get_neighbor_sites", &SQIceGame::GetNeighborSites)
+        .def("get_phy_observables", &SQIceGame::GetPhyObservables)
+
+        // Waiting list
         .def("get_energy_map", &SQIceGame::GetEnergyMap)
         .def("get_defect_map", &SQIceGame::GetDefectMap)
         .def("get_valid_action_map", &SQIceGame::GetValidActionMap)
         .def("get_sublatt_map", &SQIceGame::GetSublattMap)
+
+        // LEGACY or REMOVE
         .def("get_local_spins", &SQIceGame::GetLocalSpins)
         .def("get_local_sites", &SQIceGame::GetLocalSites)
-        .def("get_neighbor_spins", &SQIceGame::GetNeighborSpins)
-        .def("get_neighbor_sites", &SQIceGame::GetNeighborSites)
-        .def("get_phy_observables", &SQIceGame::GetPhyObservables)
+
 
         // Game information
         .def("show_info", &SQIceGame::ShowInfo)

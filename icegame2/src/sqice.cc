@@ -96,8 +96,8 @@ void SQIceGame::update_state_to_config() {
     ice_config.Ising = state_t;
     state_0 = state_t;
     state_tp1 = state_t;
-    // state_0 = state_t 
     // ... Sanity check!
+    // NOTE: Now, there is no defect density check!
     if ( _cal_defect_density_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_DEFECT_DENSITY \
         && _cal_energy_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_ENERGY) {
         std::cout << "[GAME] Updated Succesfully!\n";
@@ -117,7 +117,6 @@ void SQIceGame::UpdateConfig() {
 }
 
 void SQIceGame::restore_config_to_state() {
-    // any check?
     state_t = ice_config.Ising;
     state_tp1 = ice_config.Ising;
     state_0 = ice_config.Ising;
@@ -366,6 +365,8 @@ void SQIceGame::flip_along_trajectory(const vector<int>& traj) {
                     << ", dd = " << _cal_defect_density_of_state(state_t) << endl;
             #endif
         }
+    } else {
+        std::cout << "[GAME] WARNING: Attempt to flip empty trajectory list!\n";
     }
 }
 
@@ -739,11 +740,10 @@ int SQIceGame::get_site_by_direction(int dir_idx) {
     }
 
     // Find new site according to the sublattice
-
-    //#ifdef DEBUG
-    std::cout << "get_neighbor_site_by_direction(dir=" << dir_idx << ") = " 
+    #ifdef DEBUG
+      std::cout << "get_neighbor_site_by_direction(dir=" << dir_idx << ") = " 
                 << new_site << " with agent site = " << agent_site << " \n";
-    //#endif
+    #endif
     return new_site;
 }
 
@@ -774,20 +774,12 @@ object SQIceGame::GetEnergyMap() {
     return float_wrap(energy_map);
 }
 
-object SQIceGame::GetStateT() {
-    return int_wrap(state_t);
-}
-
-object SQIceGame::GetStateTp1() {
-    return int_wrap(state_tp1);
-}
-
 vector<int> SQIceGame::GetStateTMap() {
     // WARING: BUGS!, Head of values would go crazy.
     // It is safer for python to do the type conversion.
     vector<int> ordered_state_t;
     for (int i = 0; i < N; i++) {
-        int spin = state_t[latt.site1d[i]];
+        int spin = state_t[latt.indices[i]];
         ordered_state_t.emplace_back(spin);
         #ifdef false
           std::cout << "index =  " << i 
@@ -803,10 +795,21 @@ vector<int> SQIceGame::GetStateTMap() {
 vector<int> SQIceGame::GetStateTp1Map() {
     vector<int> ordered_state_tp1;
     for (int i = 0; i < N; i++) {
-        int spin = state_tp1[latt.site1d[i]];
+        int spin = state_tp1[latt.indices[i]];
         ordered_state_tp1.emplace_back(spin);
     }
     return ordered_state_tp1;
+}
+
+vector<int> SQIceGame::GetStateDiffMap() {
+    vector<int> ordered_diff;
+    for (int i =0; i < N; i++) {
+        int spin = state_tp1[latt.indices[i]] - state_t[latt.indices[i]];
+        //int spin = state_tp1[latt.site1d[i]] - state_t[latt.site1d[i]];
+        // Should we normalize from [-2, 2] back to [-1, 1]?
+        ordered_diff.emplace_back(spin);
+    }
+    return ordered_diff;
 }
 
 object SQIceGame::GetStateTMapColor() {
@@ -861,6 +864,14 @@ object SQIceGame::GetStateDifferenceMap() {
     // TODO: Compute the state difference of state_t and state_t-1
     vector<double> map_(state_t.begin(), state_t.end());
     return float_wrap(map_);
+}
+
+vector<int> SQIceGame::GetStateDiff() {
+    // get state_tp1 - state_t
+    vector<int> diff;
+    std::transform(state_tp1.begin(), state_tp1.end(), state_t.begin(),
+        std::back_inserter(diff), [&](int tp1, int t) {return tp1-t;});
+    return diff;
 }
 
 object SQIceGame::GetCanvasMap() {
