@@ -52,7 +52,7 @@ SQIceGame::SQIceGame (INFO info) : sim_info(info) {
     canvas_spin_map.resize(N, EMPTY_MAP_VALUE);
     energy_map.resize(N, ENERGY_MAP_DEFAULT_VALUE);
     defect_map.resize(N, DEFECT_MAP_DEFAULT_VALUE);
-    diff_map.resize(N, EMPTY_MAP_VALUE);
+    //diff_map.resize(N, EMPTY_MAP_VALUE);
 
     std::cout << "[GAME] SQIceGame is created.\n";
 }
@@ -75,7 +75,7 @@ void SQIceGame::clear_maps() {
     std::fill(canvas_spin_map.begin(), canvas_spin_map.end(), EMPTY_MAP_VALUE);
     std::fill(energy_map.begin(), energy_map.end(), ENERGY_MAP_DEFAULT_VALUE);
     std::fill(defect_map.begin(), defect_map.end(), DEFECT_MAP_DEFAULT_VALUE);
-    std::fill(diff_map.begin(), diff_map.end(), EMPTY_MAP_VALUE);
+    //std::fill(diff_map.begin(), diff_map.end(), EMPTY_MAP_VALUE);
 }
 
 void SQIceGame::clear_counters() {
@@ -266,37 +266,41 @@ vector<double> SQIceGame::Metropolis() {
         Returns: 
             results = []
     */
-    vector<double> rets(4);
+   // Note: Why we use state_tp1 rather than state_t?
+    vector<double> rets;
     bool is_accept = false;
-    double E0 = _cal_energy_of_state(state_0);
-    double Et = _cal_energy_of_state(state_t);
+    double E0 = _cal_energy_of_state(state_0); // check this
+    double Et = _cal_energy_of_state(state_tp1);
     double dE = Et - E0;
-    double dd = _cal_defect_density_of_state(state_t);
-    int diff_counts = _cal_config_t_difference();
+    // defect function now is not fully supported!
+    double dd = _cal_defect_density_of_state(state_tp1);
+    // explicit function call
+    int diff_counts = _count_config_difference(state_t, state_0);
     double diff_ratio = diff_counts / double(N);
 
     // calculates returns
     if (dE == 0.0) {
         if (dd != 0.0) {
+            // this condition is used as sanity check
             std::cout << "[Game]: State has no energy changes but contains defects! Sanity checking fails!\n";
         }
         is_accept = true;
-        rets[0] = ACCEPT_VALUE;
+        rets.emplace_back(ACCEPT_VALUE);
     } else {
-        rets[0] = REJECT_VALUE;
+        rets.emplace_back(REJECT_VALUE);
     }
-    rets[1] = dE;
-    rets[2] = dd;
-    rets[3] = diff_ratio;
+
+    rets.emplace_back(dE);
+    rets.emplace_back(diff_ratio);
 
     // update counters
     action_statistics[METROPOLIS_PROPOSAL]++;
     ep_action_counters[METROPOLIS_PROPOSAL]++;
     num_total_steps++;
     // Not an Episode
+    same_ep_counter++;
     ep_step_counter++;
     num_updates++;
-
     return rets;
 }
 
@@ -412,11 +416,27 @@ int SQIceGame::get_agent_spin() {
 vector<double> SQIceGame::Move(int dir_idx) {
     // Move and Flip?
     vector<double> rets;
+    double prev_eng = _cal_energy_of_state(state_tp1);
     int new_site = get_site_by_direction(dir_idx);
     int new_agent_site = put_and_flip_agent(new_site);
     if (new_site != new_agent_site) {
         std::cout << "[GAME] Warning! Put agent on wrong site!\n";
     }
+    double curr_eng = _cal_energy_of_state(state_tp1);
+    double dE = curr_eng - prev_eng;
+    // diff ratio is also different from metropolis.
+    int diff_counts = _count_config_difference(state_t, state_tp1);
+    double diff_ratio = diff_counts / double(N);
+    // Add information to rets. What do we need?
+    if (dE == 0.0) {
+        // this move follow ice-rule
+        rets.emplace_back(ACCEPT_VALUE);
+    } else {
+        rets.emplace_back(REJECT_VALUE);
+    }
+    rets.emplace_back(dE);
+    rets.emplace_back(diff_ratio);
+
     return rets;
 }
 
@@ -812,6 +832,7 @@ vector<int> SQIceGame::GetStateDiffMap() {
     return ordered_diff;
 }
 
+// LEGACY
 object SQIceGame::GetStateTMapColor() {
     //TODO: Review this codes
     // parsing the map and return.
@@ -983,12 +1004,7 @@ double SQIceGame::_cal_energy_of_site(const vector<int> &s, int site) {
 
 double SQIceGame::_cal_defect_density_of_state(const vector<int> & s) {
     double dd = 0.0;
-    //for (int i = 0; i < N; ++i) {
-        //dd += s[latt.NN[i]];
-    //}
-    dd /= 2.0;
-    dd /= N;
-    return abs(dd);
+    return dd;
 }
 
 double SQIceGame::_cal_mean(const vector<int> &s) {
@@ -1055,15 +1071,18 @@ bool SQIceGame::_is_traj_intersect() {
 }
 
 int SQIceGame::_cal_config_t_difference() {
+    // NOTICE: This function should called after flipping trajectory.
     int diff_counter = 0;
-    for (size_t i = 0 ; i < N; i++) {
+    for (int i = 0 ; i < N; i++) {
         if (state_0[i] != state_t[i]) {
             diff_counter++;
-            diff_map[i] = OCCUPIED_MAP_VALUE;
         }
     }
     return diff_counter;
 }
+
+
+// Clear, explicitly compuate the difference.
 int SQIceGame::_count_config_difference(const vector<int> &c1, const vector<int> &c2) {
     // Navie method compute the difference of two configurations
     int counter = 0;

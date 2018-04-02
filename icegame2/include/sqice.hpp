@@ -38,14 +38,14 @@
 #include <numpy/ndarrayobject.h> // ensure you include this header
 
 //// Constants used in Icegame ////
-const int NUM_OF_ACTIONS = 9; // TODO!
-
-const int METROPOLIS_PROPOSAL = 8;
+const int NUM_OF_ACTIONS = 6;
+const int METROPOLIS_PROPOSAL = 6;
 const int NULL_SITE = -1;
 const int SPIN_UP = 1;
 const int SPIN_DOWN = -1;
 const int NULL_SPIN = 0;
 
+// LEGACY CODES
 const double SPIN_UP_SUBLATT_A = +0.75;
 const double SPIN_UP_SUBLATT_B = +0.25;
 const double SPIN_DOWN_SUBLATT_A = -SPIN_UP_SUBLATT_A;
@@ -409,7 +409,7 @@ class SQIceGame {
         vector<double> canvas_spin_map;
         vector<double> energy_map;
         vector<double> defect_map;
-        vector<int> diff_map;
+        //vector<int> diff_map;
 
         // utilities
         Timer tt;
