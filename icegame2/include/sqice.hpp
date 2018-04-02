@@ -10,6 +10,7 @@
     NEW DESIGN!
     * Use checkerboard as new lattice class.
     * Add loop algorithm as function in this class.
+    * All colored maps are handled by python, cpp taking care of less manipulation.
 
     * Need more flexibility!
     * Go back to old convention: only Neighbor
@@ -289,15 +290,16 @@ class SQIceGame {
         int get_site_by_direction(int dir);
         ActDir get_direction_by_sites(int site, int next_site);
         
-        // Neighbor is adjacent 8 sites
+        // Neighbor is adjacent 6 sites
         vector<int> get_neighbor_sites();
         vector<int> get_neighbor_spins();
+        // Neighbors & Agent (in last element)
+        vector<int> get_local_sites();
+        vector<int> get_local_spins();
         // maybe we need a candidate for counter partner
 
         // Local contributes to energy
         // TODO: update to new version
-        vector<int> get_local_sites();
-        vector<int> get_local_spins();
         vector<int> get_local_candidates(bool same_spin);
 
         void push_site_to_trajectory(int site);
@@ -475,6 +477,7 @@ BOOST_PYTHON_MODULE(icegame)
 
         .def("get_neighbor_spins", &SQIceGame::GetNeighborSpins)
         .def("get_neighbor_sites", &SQIceGame::GetNeighborSites)
+
         .def("get_phy_observables", &SQIceGame::GetPhyObservables)
 
         // Waiting list

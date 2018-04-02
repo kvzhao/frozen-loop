@@ -677,31 +677,20 @@ vector<int> SQIceGame::_get_neighbor_of_index(int index) {
     return locals;
 }
 
-
 vector<int> SQIceGame::get_local_sites() {
-    // Fool around first.
-    return get_neighbor_sites();
+    vector<int> lsites = get_neighbor_sites();
+    lsites.emplace_back(get_agent_site());
+    return lsites;
+}
+
+vector<int> SQIceGame::get_local_spins() {
+    vector<int> lspins = get_neighbor_spins();
+    lspins.emplace_back(get_agent_spin());
+    return lspins;
 }
 
 vector<int> SQIceGame::get_neighbor_sites() {
     return _get_neighbor_of_site(agent_site);
-}
-
-vector<int> SQIceGame::get_local_spins() {
-    // LEGACY CODE
-    vector<int> locals(6);
-    locals[0] = state_t[latt.NN[agent_site][0]];
-    locals[1] = state_t[latt.NN[agent_site][1]];
-    locals[2] = state_t[latt.NN[agent_site][2]];
-    locals[3] = state_t[latt.NN[agent_site][3]];
-    if (latt.sub[agent_site] == 1) {
-        locals[4] = state_t[latt.NNN[agent_site][0]];
-        locals[5] = state_t[latt.NNN[agent_site][2]];
-    } else {
-        locals[4] = state_t[latt.NNN[agent_site][1]];
-        locals[5] = state_t[latt.NNN[agent_site][3]];
-    }
-    return locals;
 }
 
 vector<int> SQIceGame::get_local_candidates(bool same_spin) {
