@@ -318,6 +318,7 @@ class SQIceGame {
         double _cal_energy_of_state(const vector<int> &s);
         double _cal_energy_of_site(const vector<int> &s, int site);
         double _cal_defect_density_of_state(const vector<int> &s);
+        int _cal_defect_number_of_state(const vector<int> &s);
         int _cal_config_t_difference();
         int _count_config_difference(const vector<int> &c1, const vector<int> &c2);
         // magic function compute periodic boundary condition

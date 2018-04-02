@@ -366,6 +366,7 @@ void SQIceGame::flip_along_trajectory(const vector<int>& traj) {
             #ifdef DEBUG
             std::cout << "--> Flip site " << site 
                     << " and dE = " << _cal_energy_of_state(state_t) - _cal_energy_of_state(state_0)
+                    << ", dn = " << _cal_defect_number_of_state(state_t) 
                     << ", dd = " << _cal_defect_density_of_state(state_t) << endl;
             #endif
         }
@@ -617,13 +618,13 @@ vector<double> SQIceGame::GetPhyObservables() {
         Is loop length important here?
     */
 
-    vector<double> obs(2);
+    vector<double> obs;
     double eng_density = _cal_energy_of_state(state_tp1); // this is already the density
-    //double def_density = _cal_defect_density_of_state(state_tp1);
+    double def_density = _cal_defect_density_of_state(state_tp1);
     double config_diff_ratio = _count_config_difference(state_t, state_tp1) / double(N);
-    obs[0] = eng_density;
-    obs[1] = config_diff_ratio;
-    //obs[1] = def_density;
+    obs.emplace_back(eng_density);
+    obs.emplace_back(def_density);
+    obs.emplace_back(config_diff_ratio);
 
     // Do we need energy difference?
 
@@ -783,6 +784,7 @@ ActDir SQIceGame::get_direction_by_sites(int site, int next_site) {
     TODO: add more map tricks
 */
 
+// LEGACY CODE!
 object SQIceGame::GetEnergyMap() {
     for (int i = 0; i < N; i++) {
         double se = 0.0;
@@ -1002,8 +1004,23 @@ double SQIceGame::_cal_energy_of_site(const vector<int> &s, int site) {
     return se;
 }
 
+int SQIceGame::_cal_defect_number_of_state(const vector<int> &s) {
+    int num_defects = 0;
+    for (int i = 0 ; i < N; i++) {
+        //if (0 == latt.sub[i]) {
+            int n0 = latt.NN[i][0];
+            int n1 = latt.NN[i][1];
+            int n2 = latt.NN[i][2];
+            num_defects += (s[i] + s[n0] + s[n1] + s[n2]);
+        //}
+    }
+    return num_defects;
+}
+
 double SQIceGame::_cal_defect_density_of_state(const vector<int> & s) {
     double dd = 0.0;
+    int num_defects = _cal_defect_number_of_state(s);
+    dd = static_cast<double>(num_defects)/N;
     return dd;
 }
 
