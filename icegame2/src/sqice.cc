@@ -175,7 +175,7 @@ void SQIceGame::SetIce(const boost::python::object &iter) {
         // Here, no sanity check is needed.
         // ...
         // Or, we just lazily do this and call from python?
-        std::cout << "[GAME] SetIce from python legally.\n";
+        std::cout << "[GAME] Set Ice configuration from python successfully.\n";
     } else {
         std::cout << "[GAME] The Configuration is not in ice state! Store in buffer.\n";
         std::cout << " Energy: " << energy_density << " Defect: " << defect_density << ".\n";
@@ -437,6 +437,11 @@ vector<double> SQIceGame::Move(int dir_idx) {
     }
     rets.emplace_back(dE);
     rets.emplace_back(diff_ratio);
+
+    // counter increments
+    ep_action_counters[dir_idx]++;
+    ep_action_list.emplace_back(dir_idx);
+    action_statistics[dir_idx]++;
 
     return rets;
 }
