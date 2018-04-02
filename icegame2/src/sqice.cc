@@ -29,7 +29,7 @@ SQIceGame::SQIceGame (INFO info) : sim_info(info) {
     same_ep_counter = 0;
     updated_counter = 0;
     num_updates = 0;
-    num_resets = 0;
+    num_config_resets = 0;
 
     mag_fields.emplace_back(h1_t);
     mag_fields.emplace_back(h2_t);
@@ -1450,7 +1450,7 @@ void SQIceGame::show_information() {
     std::cout << "Game information --- \n";
     std::cout << "\tGlobal step: " << num_total_steps << " - Local step: "
         << same_ep_counter << " in " << num_episode << " episode.\n";
-    std::cout << "\t Number of configuration resets: " << num_resets << "\n";
+    std::cout << "\t Number of configuration resets: " << num_config_resets << "\n";
     std::cout << "\t Number of successful updates: " <<  updated_counter << "\n";
 
     // Agent information

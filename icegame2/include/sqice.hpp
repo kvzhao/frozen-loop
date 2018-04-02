@@ -379,10 +379,8 @@ class SQIceGame {
 
         unsigned long num_total_steps;
         unsigned long num_episode; // number of resets, TODO: Change point of views!
-
         unsigned long num_restarts;
-        unsigned long num_resets; // number of reset configurations
-
+        unsigned long num_config_resets; // number of reset configurations
         unsigned long num_updates; // number of calling Metropolis
         unsigned long updated_counter; // number of successfully updated
         int same_ep_counter; // records for playing the same game
