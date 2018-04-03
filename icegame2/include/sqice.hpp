@@ -184,6 +184,7 @@ class SQIceGame {
         void UpdateConfig();
         inline void ShowInfo() {show_information();};
 
+        inline int GetAgentInitSite() {return init_agent_site;};
         inline int GetAgentSite() {return get_agent_site();};
         inline int GetAgentSpin() {return get_agent_spin();};
 
@@ -467,6 +468,7 @@ BOOST_PYTHON_MODULE(icegame)
 
         // Updated
         .def("get_agent_site", &SQIceGame::GetAgentSite)
+        .def("get_agent_init_site", &SQIceGame::GetAgentInitSite)
         .def("get_agent_spin", &SQIceGame::GetAgentSpin)
         .def("get_agent_map", &SQIceGame::GetAgentMap)
         .def("get_canvas_map", &SQIceGame::GetCanvasMap)

@@ -260,7 +260,7 @@ void SQIceGame::clear_all() {
     clear_counters();
     restore_config_to_state();
     init_agent_site = agent_site;
-    start_site = NULL_SITE:
+    start_site = NULL_SITE;
     start_spin = NULL_SPIN;
 }
 
