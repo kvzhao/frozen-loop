@@ -23,6 +23,9 @@ SQIceGame::SQIceGame (INFO info) : sim_info(info) {
     agent_site = NULL_SITE;
     init_agent_site = NULL_SITE;
 
+    start_site = NULL_SITE;
+    start_spin = NULL_SPIN;
+
     // Set initial episode to 1, avoid division by zero
     num_episode = 1; 
     num_total_steps = 0;
@@ -227,6 +230,7 @@ void SQIceGame::MCRun(int mcSteps) {
 // Or: We use put and flip?
 int SQIceGame::Start(int init_site) {
     int ret = put_agent(init_site);
+    init_agent_site = init_site;
     // Do we need to flip?, no
     start_spin = get_agent_spin();
     // But we would call loop algo
@@ -245,10 +249,8 @@ void SQIceGame::ClearBuffer() {
 int SQIceGame::Reset(int init_site) {
     ClearBuffer();
     Start(init_site);
-
     same_ep_counter = 0;
     num_episode++;
-
     return agent_site;
 }
 
@@ -258,6 +260,8 @@ void SQIceGame::clear_all() {
     clear_counters();
     restore_config_to_state();
     init_agent_site = agent_site;
+    start_site = NULL_SITE:
+    start_spin = NULL_SPIN;
 }
 
 // member functions 
@@ -577,40 +581,6 @@ ActDir SQIceGame::how_to_go(int site) {
     // Direction --> Site Mapping
     ActDir dir = get_direction_by_sites(agent_site, site);
     return dir;
-}
-
-vector<int> SQIceGame::GetNeighborSpins() {
-    return get_neighbor_spins();
-}
-
-vector<double> SQIceGame::GetLocalSpins() {
-    // Return [agent_spin, neighbor spins (with sublattice convention)], 7 elements
-    vector<double> local_spins(7);
-    vector<int> nspins = get_local_spins();
-    vector<int> nsites = get_local_sites();
-    if (latt.sub[agent_site] == 1) {
-        local_spins[0] = get_agent_spin() > 0 ? SPIN_UP_SUBLATT_A : SPIN_DOWN_SUBLATT_A;
-    } else{
-        local_spins[0] = get_agent_spin() > 0 ? SPIN_UP_SUBLATT_B : SPIN_DOWN_SUBLATT_B;
-    }
-    // number of neighbor is fixed to be 6, hard-coded.
-    for (int i=0; i<6; i++) {
-        if (latt.sub[nsites[i]] == 1) {
-            local_spins[i+1] = nspins[i] > 0 ? SPIN_UP_SUBLATT_A : SPIN_DOWN_SUBLATT_A;
-        } else {
-            local_spins[i+1] = nspins[i] > 0 ? SPIN_UP_SUBLATT_B : SPIN_DOWN_SUBLATT_B;
-        }
-    }
-    return local_spins;
-}
-
-vector<int> SQIceGame::GetLocalSites() {
-    // Wrapper of the function 'get_neighbor_sites'
-    return get_local_sites();
-}
-
-vector<int> SQIceGame::GetNeighborSites() {
-    return get_neighbor_sites();
 }
 
 vector<double> SQIceGame::GetPhyObservables() {

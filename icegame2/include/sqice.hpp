@@ -221,11 +221,10 @@ class SQIceGame {
         void PrintLattice();
 
         // These two are now wrapper functions
-        vector<int> GetNeighborSpins();
-        vector<int> GetNeighborSites();
-
-        vector<double> GetLocalSpins();
-        vector<int> GetLocalSites();
+        inline vector<int> GetNeighborSpins() {return get_neighbor_spins();};
+        inline vector<int> GetNeighborSites() {return get_neighbor_sites();};
+        inline vector<int> GetLocalSpins() {return get_local_spins();};
+        inline vector<int> GetLocalSites() {return get_local_sites();};
 
         vector<double> GetPhyObservables();
 
