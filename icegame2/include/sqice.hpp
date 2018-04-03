@@ -4,7 +4,7 @@
 #pragma once
 
 // Switch of the debug mode.
-#define DEBUG
+// #define DEBUG
 
 /* TODOs
     NEW DESIGN!
@@ -39,7 +39,7 @@
 #include <numpy/ndarrayobject.h> // ensure you include this header
 
 //// Constants used in Icegame ////
-const int NUM_OF_ACTIONS = 6;
+const int NUM_OF_ACTIONS = 7; // direction + metropolis
 const int METROPOLIS_PROPOSAL = 6;
 const int NULL_SITE = -1;
 const int SPIN_UP = 1;
