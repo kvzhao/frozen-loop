@@ -604,11 +604,6 @@ vector<double> SQIceGame::GetPhyObservables() {
     return obs;
 }
 
-object SQIceGame::GetLocalMap() {
-    // return the patch of the local mini-map
-}
-
-
 vector<int> SQIceGame::get_neighbor_spins() {
     vector<int> nsites = get_neighbor_sites();
     vector<int> nspins;
@@ -746,18 +741,6 @@ ActDir SQIceGame::get_direction_by_sites(int site, int next_site) {
     TODO: add more map tricks
 */
 
-// LEGACY CODE!
-object SQIceGame::GetEnergyMap() {
-    for (int i = 0; i < N; i++) {
-        double se = 0.0;
-        // TODO: Assign different values on AB sublattice
-        // if (latt.sub[i] == 1
-        se = _cal_energy_of_site(state_tp1, i);
-        energy_map[i] = se / 6.0;
-    }
-    return float_wrap(energy_map);
-}
-
 vector<int> SQIceGame::GetStateTMap() {
     // WARING: BUGS!, Head of values would go crazy.
     // It is safer for python to do the type conversion.
@@ -796,84 +779,12 @@ vector<int> SQIceGame::GetStateDiffMap() {
     return ordered_diff;
 }
 
-object SQIceGame::GetSublattMap() {
-    //TODO: Should the value changes to sublatt AB convention?
-    // Or identity just means to be valid.
-    vector<double> map_(state_t.begin(), state_t.end());
-    for (int i = 0; i < N; i++) {
-        if (latt.sub[i] == 1) {
-            map_[i] = 1.0;
-        } else {
-            map_[i] = 0.0;
-        }
-    }
-    return float_wrap(map_);
-}
-
-object SQIceGame::GetStateDifferenceMap() {
-    // TODO: Compute the state difference of state_t and state_t-1
-    vector<double> map_(state_t.begin(), state_t.end());
-    return float_wrap(map_);
-}
-
 vector<int> SQIceGame::GetStateDiff() {
     // get state_tp1 - state_t
     vector<int> diff;
     std::transform(state_tp1.begin(), state_tp1.end(), state_t.begin(),
         std::back_inserter(diff), [&](int tp1, int t) {return tp1-t;});
     return diff;
-}
-
-object SQIceGame::GetCanvasMap() {
-    return float_wrap(canvas_traj_map);
-}
-
-object SQIceGame::GetAgentMap() {
-    vector<double> map_(N, 0.0);
-    map_[get_agent_site()] = AGENT_OCCUPIED_VALUE;
-    return float_wrap(map_);
-}
-
-object SQIceGame::GetValidActionMap() {
-    vector<double> map_(N, 0.0);
-    vector<int> nsites = get_neighbor_sites();
-    vector<int> nspins = get_neighbor_spins();
-
-    map_[get_agent_site()] = AGENT_OCCUPIED_VALUE;
-    /* 
-        Start from here, considering the forsee map
-    if (latt.sub[get_agent_site()] == 1) {
-        map_[get_agent_site()] = get_agent_spin() > 0 ? SPIN_UP_SUBLATT_A : SPIN_DOWN_SUBLATT_A;
-    } else {
-        map_[get_agent_site()] = get_agent_spin() > 0 ? SPIN_UP_SUBLATT_B : SPIN_DOWN_SUBLATT_B;
-    }
-    */
-
-    for (std::vector<int>::size_type i =0; i < nsites.size(); i++) {
-        if (latt.sub[nsites[i]] == 1) {
-            // sub latt A
-            map_[nsites[i]] = nspins[i] > 0 ? SPIN_UP_SUBLATT_A : SPIN_DOWN_SUBLATT_A;
-        } else {
-            // sub latt B
-            map_[nsites[i]] = nspins[i] > 0 ? SPIN_UP_SUBLATT_B : SPIN_DOWN_SUBLATT_B;
-        }
-    }
-
-    return float_wrap(map_);
-}
-
-object SQIceGame::GetDefectMap() {
-    for (int i =0; i < N; i++) {
-        double dd = 0.0;
-        if (latt.sub[i] == 1) {
-            dd = abs(state_tp1[i] + state_tp1[latt.NN[i][0]] + state_tp1[latt.NN[i][1]] + state_tp1[latt.NNN[i][0]]);
-            dd /= 4.0;
-        }
-        //TODO: Make difference of AB sublattice
-        //defect_map[i] = DEFECT_MAP_DEFAULT_VALUE - dd;
-        defect_map[i] = dd;
-    }
-    return float_wrap(defect_map);
 }
 
 void SQIceGame::PrintLattice() {

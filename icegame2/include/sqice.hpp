@@ -36,7 +36,6 @@
 // boost.python intefaces
 #include <boost/python.hpp>
 #include <boost/python/stl_iterator.hpp>
-#include <numpy/ndarrayobject.h> // ensure you include this header
 
 //// Constants used in Icegame ////
 const int NUM_OF_ACTIONS = 7; // direction + metropolis
@@ -91,34 +90,6 @@ using namespace boost::python;
 
 #include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 typedef std::vector<int> IntList;
-
-// wrap c++ array as numpy array
-// this function may cause some numeric issue? (probably)
-static boost::python::object float_wrap(const std::vector<double> &vec) {
-    npy_intp size = vec.size();
-    double *data = const_cast<double *>(&vec[0]);
-
-    npy_intp shape[1] = { size }; // array size
-    PyObject* obj = PyArray_New(&PyArray_Type, 1, shape, NPY_DOUBLE, // data type
-                                NULL, data, // data pointer
-                                0, NPY_ARRAY_CARRAY, // NPY_ARRAY_CARRAY_RO for readonly
-                                NULL);
-    handle<> array( obj );
-    return object(array);
-}
-
-// avoid using template
-static boost::python::object int_wrap(const std::vector<int> &vec) {
-    npy_intp size = vec.size();
-    int *data = const_cast<int*>(&vec[0]);
-    npy_intp shape[1] = { size }; // array size
-    PyObject* obj = PyArray_New(&PyArray_Type, 1, shape, NPY_INT, // data type
-                                NULL, data, // data pointer
-                                0, NPY_ARRAY_CARRAY, // NPY_ARRAY_CARRAY_RO for readonly
-                                NULL);
-    handle<> array( obj );
-    return object(array);
-}
 
 // conversion for std::vector to python list
 template <class T>
@@ -194,7 +165,6 @@ class SQIceGame {
         inline vector<int> GetStateTp1() {return state_tp1;};
         vector<int> GetStateDiff();
 
-        inline object GetSublatt() {return int_wrap(latt.sub);};
 
         // Mini maps
         /*
@@ -208,14 +178,6 @@ class SQIceGame {
         vector<int> GetStateTp1Map();
         vector<int> GetStateDiffMap();
 
-        // LEGACY
-        object GetCanvasMap(); 
-        object GetEnergyMap();
-        object GetDefectMap();
-        object GetSublattMap();
-        object GetLocalMap(); // WARNNING: empty function now.
-
-
         // * Local --> Local Energy
         // * Neighbor --> Adjacency
 
@@ -228,11 +190,6 @@ class SQIceGame {
         inline vector<int> GetLocalSites() {return get_local_sites();};
 
         vector<double> GetPhyObservables();
-
-        // New state tricks. --> Now are legacies
-        object GetStateDifferenceMap();
-        object GetValidActionMap();
-        object GetAgentMap();
 
         // Statistical Informations
         inline unsigned long GetTotalSteps() {return num_total_steps;};
@@ -422,8 +379,6 @@ BOOST_PYTHON_MODULE(icegame)
     class_<INFO>("INFO", init<int, int, int, int, int, int, int, int>())
     ;
 
-    import_array();
-
     to_python_converter<std::vector<int, class std::allocator<int> >, Vec2List<int> >();
     to_python_converter<std::vector<double, class std::allocator<double> >, Vec2List<double> >();
 
@@ -461,7 +416,6 @@ BOOST_PYTHON_MODULE(icegame)
         .def("get_state_t", &SQIceGame::GetStateT)
         .def("get_state_tp1", &SQIceGame::GetStateTp1)
         .def("get_state_diff", &SQIceGame::GetStateDiff)
-        .def("get_sublatt", &SQIceGame::GetSublatt)
 
         // Observations
 
@@ -469,8 +423,6 @@ BOOST_PYTHON_MODULE(icegame)
         .def("get_agent_site", &SQIceGame::GetAgentSite)
         .def("get_agent_init_site", &SQIceGame::GetAgentInitSite)
         .def("get_agent_spin", &SQIceGame::GetAgentSpin)
-        .def("get_agent_map", &SQIceGame::GetAgentMap)
-        .def("get_canvas_map", &SQIceGame::GetCanvasMap)
         .def("get_state_t_map", &SQIceGame::GetStateTMap)
         .def("get_state_tp1_map", &SQIceGame::GetStateTp1Map)
         .def("get_state_diff_map", &SQIceGame::GetStateDiffMap)
@@ -480,11 +432,6 @@ BOOST_PYTHON_MODULE(icegame)
 
         .def("get_phy_observables", &SQIceGame::GetPhyObservables)
 
-        // Waiting list
-        .def("get_energy_map", &SQIceGame::GetEnergyMap)
-        .def("get_defect_map", &SQIceGame::GetDefectMap)
-        .def("get_valid_action_map", &SQIceGame::GetValidActionMap)
-        .def("get_sublatt_map", &SQIceGame::GetSublattMap)
 
         // LEGACY or REMOVE
         .def("get_local_spins", &SQIceGame::GetLocalSpins)
