@@ -229,9 +229,7 @@ class SQIceGame {
 
         vector<double> GetPhyObservables();
 
-        // New state tricks.
-        object GetStateTMapColor();
-        object GetStateTp1MapColor();
+        // New state tricks. --> Now are legacies
         object GetStateDifferenceMap();
         object GetValidActionMap();
         object GetAgentMap();
@@ -317,7 +315,8 @@ class SQIceGame {
         int _flip_state_t_site (int site); // use this less and carefully
         int _flip_state_tp1_site(int site); // return spin
 
-        double _cal_energy_of_state(const vector<int> &s);
+        int _cal_energy_of_state(const vector<int> &s);
+        double _cal_energy_density_of_state(const vector<int> &s);
         double _cal_energy_of_site(const vector<int> &s, int site);
         double _cal_defect_density_of_state(const vector<int> &s);
         int _cal_defect_number_of_state(const vector<int> &s);

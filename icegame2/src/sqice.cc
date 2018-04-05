@@ -102,7 +102,7 @@ void SQIceGame::update_state_to_config() {
     // ... Sanity check!
     // NOTE: Now, there is no defect density check!
     if ( _cal_defect_density_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_DEFECT_DENSITY \
-        && _cal_energy_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_ENERGY) {
+        && _cal_energy_density_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_ENERGY) {
         std::cout << "[GAME] Updated Succesfully!\n";
         updated_counter++; 
         accepted_looplength.emplace_back(diff);
@@ -162,7 +162,7 @@ void SQIceGame::SetIce(const boost::python::object &iter) {
     // Should do the sanity check and assign to spins and config, then update
     // refer to the updating function
     double defect_density = _cal_defect_density_of_state(cfg);
-    double energy_density = _cal_energy_of_state(cfg);
+    double energy_density = _cal_energy_density_of_state(cfg);
     if (  defect_density == AVERAGE_GORUND_STATE_DEFECT_DENSITY \
         && energy_density == AVERAGE_GORUND_STATE_ENERGY) {
         // We should carefully assign the configuration to all of the state, and clear the buffer.
@@ -211,7 +211,7 @@ void SQIceGame::MCRun(int mcSteps) {
     state_t = ice_config.Ising;
     state_tp1 = ice_config.Ising;
 
-    std::cout << "[GAME] Average Energy E = " << _cal_energy_of_state(state_0) << "\n";
+    std::cout << "[GAME] Average Energy E = " << _cal_energy_density_of_state(state_0) << "\n";
     //std::cout << "[GAME] Defect Density D = " << _cal_defect_density_of_state(state_0) << "\n";
     //std::cout << "[GAME] Config mean = " << config_mean << " , and std = " << config_stdev << "\n";
     // ======== FAILS BELOW ====== //
@@ -219,7 +219,7 @@ void SQIceGame::MCRun(int mcSteps) {
     config_mean = _cal_mean(state_0);
     config_stdev = _cal_stdev(state_0);
 
-    std::cout << "[GAME] Average Energy E = " << _cal_energy_of_state(state_0) << "\n";
+    std::cout << "[GAME] Average Energy E = " << _cal_energy_density_of_state(state_0) << "\n";
     std::cout << "[GAME] Defect Density D = " << _cal_defect_density_of_state(state_0) << "\n";
     std::cout << "[GAME] Config mean = " << config_mean << " , and std = " << config_stdev << "\n";
     */
@@ -273,8 +273,8 @@ vector<double> SQIceGame::Metropolis() {
    // Note: Why we use state_tp1 rather than state_t?
     vector<double> rets;
     bool is_accept = false;
-    double E0 = _cal_energy_of_state(state_0); // check this
-    double Et = _cal_energy_of_state(state_tp1);
+    double E0 = _cal_energy_density_of_state(state_0); // check this
+    double Et = _cal_energy_density_of_state(state_tp1);
     double dE = Et - E0;
     // defect function now is not fully supported!
     double dd = _cal_defect_density_of_state(state_tp1);
@@ -369,7 +369,7 @@ void SQIceGame::flip_along_trajectory(const vector<int>& traj) {
             _flip_state_t_site(site);
             #ifdef DEBUG
             std::cout << "--> Flip site " << site 
-                    << " and dE = " << _cal_energy_of_state(state_t) - _cal_energy_of_state(state_0)
+                    << " and dE = " << _cal_energy_density_of_state(state_t) - _cal_energy_density_of_state(state_0)
                     << ", dn = " << _cal_defect_number_of_state(state_t) 
                     << ", dd = " << _cal_defect_density_of_state(state_t) << endl;
             #endif
@@ -421,13 +421,13 @@ int SQIceGame::get_agent_spin() {
 vector<double> SQIceGame::Move(int dir_idx) {
     // Move and Flip?
     vector<double> rets;
-    double prev_eng = _cal_energy_of_state(state_tp1);
+    double prev_eng = _cal_energy_density_of_state(state_tp1);
     int new_site = get_site_by_direction(dir_idx);
     int new_agent_site = put_and_flip_agent(new_site);
     if (new_site != new_agent_site) {
         std::cout << "[GAME] Warning! Put agent on wrong site!\n";
     }
-    double curr_eng = _cal_energy_of_state(state_tp1);
+    double curr_eng = _cal_energy_density_of_state(state_tp1);
     double dE = curr_eng - prev_eng;
     // diff ratio is also different from metropolis.
     int diff_counts = _count_config_difference(state_t, state_tp1);
@@ -473,7 +473,7 @@ vector<double> SQIceGame::Draw(int dir_idx) {
     }
     canvas_spin_map[site] = double(state_t[site]);
 
-    double dE = _cal_energy_of_state(state_tp1) - _cal_energy_of_state(state_t);
+    double dE = _cal_energy_density_of_state(state_tp1) - _cal_energy_density_of_state(state_t);
     double dd = _cal_defect_density_of_state(state_tp1);
 
     // TODO: compare t and tp1
@@ -504,7 +504,7 @@ vector<double> SQIceGame::Flip() {
     // Flip the current agent site.
     flip_agent();
 
-    double dE = _cal_energy_of_state(state_tp1) - _cal_energy_of_state(state_t);
+    double dE = _cal_energy_density_of_state(state_tp1) - _cal_energy_density_of_state(state_t);
     //double dd = _cal_defect_density_of_state(state_tp1);
     double dC = _count_config_difference(state_t, state_tp1) / double(N);
 
@@ -588,20 +588,18 @@ vector<double> SQIceGame::GetPhyObservables() {
     /*
         How many phyiscal qunatities are relevant?
             * Energy Density
-            * Defect Density
             * Configuration Defference Ratio
         Is loop length important here?
     */
 
     vector<double> obs;
-    double eng_density = _cal_energy_of_state(state_tp1); // this is already the density
-    double def_density = _cal_defect_density_of_state(state_tp1);
+    double eng_density = _cal_energy_density_of_state(state_tp1); // this is already the density
+    double diff_eng_density = eng_density - _cal_energy_density_of_state(state_t);
+    //double def_density = _cal_defect_density_of_state(state_tp1); // well, it seems no need for this.
     double config_diff_ratio = _count_config_difference(state_t, state_tp1) / double(N);
     obs.emplace_back(eng_density);
-    obs.emplace_back(def_density);
+    obs.emplace_back(diff_eng_density);
     obs.emplace_back(config_diff_ratio);
-
-    // Do we need energy difference?
 
     return obs;
 }
@@ -798,41 +796,6 @@ vector<int> SQIceGame::GetStateDiffMap() {
     return ordered_diff;
 }
 
-// LEGACY
-object SQIceGame::GetStateTMapColor() {
-    //TODO: Review this codes
-    // parsing the map and return.
-    vector<double> map_(state_t.begin(), state_t.end());
-    // Do things here.
-    for (int i=0; i < N; i++) {
-        double spin = map_[i];
-        if (latt.sub[i] == 1) {
-            map_[i] = spin > 0.0 ? SPIN_UP_SUBLATT_A : SPIN_DOWN_SUBLATT_A;
-        } else {
-            // B sublatt
-            map_[i] = spin > 0.0 ? SPIN_UP_SUBLATT_B : SPIN_DOWN_SUBLATT_B;
-        }
-    }
-    return float_wrap(map_);
-}
-
-object SQIceGame::GetStateTp1MapColor() {
-    //TODO: Review this codes
-    // parsing the map and return.
-    vector<double> map_(state_tp1.begin(), state_tp1.end());
-    // Do things here.
-    for (int i=0; i < N; i++) {
-        double spin = map_[i];
-        if (latt.sub[i] == 1) {
-            map_[i] = spin > 0.0 ? SPIN_UP_SUBLATT_A : SPIN_DOWN_SUBLATT_A;
-        } else {
-            // B sublatt
-            map_[i] = spin > 0.0 ? SPIN_UP_SUBLATT_B : SPIN_DOWN_SUBLATT_B;
-        }
-    }
-    return float_wrap(map_);
-}
-
 object SQIceGame::GetSublattMap() {
     //TODO: Should the value changes to sublatt AB convention?
     // Or identity just means to be valid.
@@ -927,9 +890,23 @@ void SQIceGame::PrintLattice() {
 }
 
 // ###### private function ######
-double SQIceGame::_cal_energy_of_state(const vector<int> & s) {
-    double eng = 0.0;
 
+int SQIceGame::_cal_energy_of_state(const vector<int> & s) {
+    int eng = 0;
+    for (int i = 0; i < N; i++) {
+        int se = 0;
+        for (auto nb : latt.NN[i]) {
+            se += s[nb];
+        }
+        se *= s[i];
+        eng += se; // J1 is double?, ignore first
+    }
+    eng = eng >> 2;
+    return eng;
+}
+
+double SQIceGame::_cal_energy_density_of_state(const vector<int> & s) {
+    double eng = 0.0;
     for (int i = 0; i < N; i++) {
         double se = 0.0;
         for (auto nb : latt.NN[i]) {
@@ -1108,7 +1085,7 @@ vector<int> SQIceGame::LongLoopAlgorithm() {
                 << ", tail= "
                 << tail_sum 
                 << ", E = " 
-                << _cal_energy_of_state(state_tp1)
+                << _cal_energy_density_of_state(state_tp1)
                 << "\n";
     }
 
@@ -1174,7 +1151,7 @@ vector<int> SQIceGame::LongLoopAlgorithm() {
               std::cout << "\tAgent spin: " << get_agent_spin() << "\n";
               _print_vector(get_neighbor_sites(), "\tNeighbor Sites");
               _print_vector(get_neighbor_spins(), "\tNeighbor Spins (Before flipping)");
-              std::cout << "\tE = " << _cal_energy_of_state(state_tp1) << "\n";
+              std::cout << "\tE = " << _cal_energy_density_of_state(state_tp1) << "\n";
             #endif
             stop = true;
         } else {
@@ -1185,7 +1162,7 @@ vector<int> SQIceGame::LongLoopAlgorithm() {
               std::cout << "\tAgent spin: " << get_agent_spin() << "\n";
               _print_vector(get_neighbor_sites(), "\tNeighbor Sites");
               _print_vector(get_neighbor_spins(), "\tNeighbor Spins (Before flipping)");
-              std::cout << "\tE = " << _cal_energy_of_state(state_tp1) << "\n";
+              std::cout << "\tE = " << _cal_energy_density_of_state(state_tp1) << "\n";
             #endif
         }
 
@@ -1418,6 +1395,6 @@ void SQIceGame::show_information() {
     _print_vector(get_neighbor_sites(), "\tNeighbor sites");
     _print_vector(get_neighbor_spins(), "\tNeighbor spins");
     _print_vector(GuideAction(), "\tAction suggestions");
-    std::cout << "\tEnergy Density = " << _cal_energy_of_state(state_tp1) << "\n";
+    std::cout << "\tEnergy Density = " << _cal_energy_density_of_state(state_tp1) << "\n";
     // How about some statistics information? // majorly processed in pyhton.
 }
