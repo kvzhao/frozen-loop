@@ -26,10 +26,13 @@ def nipsHead(x):
 class SimplePolicy(object):
     """Simple single hidden layer forward network as the policy.
     """
-    def __init__(self, local_space, ac_space):
+    def __init__(self, global_space, local_space, ac_space):
         # local & global place holder
+        print ('Use simple policy network')
         self.ac_space = ac_space
         self.local_state = tf.placeholder(tf.float32, [None, local_space])
+        # dummy placeholder
+        self.global_state = tf.placeholder(tf.float32, [None] + list(global_space))
 
         feat = linear(self.local_state, 64, "feat", normalized_columns_initializer(0.01))
 
@@ -53,6 +56,73 @@ class SimplePolicy(object):
     def value(self, obs):
         sess = tf.get_default_session()
         return sess.run(self.vfunc, {self.local_state : [obs.local_obs]})[0]
+
+class CNNPolicy(object):
+    """CNN Policy with two channels
+    """
+    def __init__(self, global_space, local_space, ac_space):
+        # local & global place holder
+        print ("Use two channels CNN policy")
+        self.ac_space = ac_space
+        self.global_state = tf.placeholder(tf.float32, [None] + list(global_space))
+        self.local_state = tf.placeholder(tf.float32, [None, local_space])
+
+        """ Convolutional Channel """
+        mconv1 = layers.conv2d(self.global_state,
+                        num_outputs=8,
+                        kernel_size=3,
+                        stride=2,
+                        activation_fn=tf.nn.relu,
+                        scope="mconv1")
+        mconv2 = layers.conv2d(mconv1,
+                        num_outputs=16,
+                        kernel_size=3,
+                        stride=2,
+                        activation_fn=tf.nn.relu,
+                        scope="mconv2")
+
+        l1 = linear(self.local_state, 32, "llayer1", normalized_columns_initializer(0.01))
+        l2 = linear(l1, 64, "llayer2", normalized_columns_initializer(0.01))
+
+        concat_feat = tf.concat([
+            layers.flatten(mconv2),
+            l2
+        ], axis=1)
+
+        #merge_layer
+        merged = linear(concat_feat, 128, "merged",  normalized_columns_initializer(0.01))
+
+        print ("Shape of mconv1: {}".format(mconv1.get_shape()))
+        print ("Shape of mconv2: {}".format(mconv2.get_shape()))
+        print ("Shape of ll1: {}".format(l1.get_shape()))
+        print ("Shape of ll2: {}".format(l2.get_shape()))
+        print ("Shape of concat: {}".format(concat_feat.get_shape()))
+        print ("Shape of merged: {}".format(merged.get_shape()))
+
+        self.logits = linear(merged, self.ac_space, "action", normalized_columns_initializer(0.01))
+        self.vfunc = tf.reshape(linear(merged, 1, "value", normalized_columns_initializer(1)), shape=[-1])
+
+        self.sample = categorical_sample(self.logits, ac_space)[0, :]
+        self.probs = tf.nn.softmax(self.logits, dim=-1)[0, :]
+        self.var_list = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, tf.get_variable_scope().name)
+
+    def act(self, obs):
+        sess = tf.get_default_session()
+        return sess.run([self.sample, self.vfunc],
+                        {self.local_state : [obs.local_obs],
+                         self.global_state : [obs.global_obs]}) 
+
+    def act_inference(self, obs):
+        sess = tf.get_default_session()
+        return sess.run([self.probs, self.sample, self.vfunc],
+                        {self.local_state : [obs.local_obs],
+                         self.global_state: [obs.global_obs]}) 
+
+    def value(self, obs):
+        sess = tf.get_default_session()
+        return sess.run(self.vfunc,
+            {self.local_state : [obs.local_obs],
+             self.global_state: [obs.global_obs]})[0]
 
 class LSTMPolicy(object):
     def __init__(self, msize, ssize, isize, ac_space):

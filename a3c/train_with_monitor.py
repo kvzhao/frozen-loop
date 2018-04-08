@@ -12,8 +12,8 @@ parser.add_argument('-r', '--remotes', default=None,
 parser.add_argument('-e', '--env-id', type=str, default="IcegameEnv-v0",
                     help="Environment id")
 
-parser.add_argument('-p', '--policy', type=str, default='simple',
-                    help='Choose policy network: simple,')
+parser.add_argument('-p', '--policy', type=str, default='cnn',
+                    help='Choose policy network: simple, cnn')
 
 parser.add_argument('-l', '--log-dir', type=str, default="/tmp/icegame_v3",
                     help="Log directory path")
@@ -37,7 +37,7 @@ def new_cmd(session, name, cmd, mode, logdir, shell):
     elif mode == 'nohup':
         return name, "nohup {} -c {} >{}/{}.{}.out 2>&1 & echo kill $! >>{}/kill.sh".format(shell, shlex_quote(cmd), logdir, session, name, logdir)
 
-def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash', mode='tmux', visualise=False):
+def create_commands(session, num_workers, remotes, policy, env_id, logdir, shell='bash', mode='tmux', visualise=False):
     # for launching the TF workers and for launching tensorboard
     # Add one policy monitor by hand
     num_workers += 1
@@ -46,6 +46,7 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
         'CUDA_VISIBLE_DEVICES=',
         sys.executable, 'worker.py',
         '--log-dir', logdir,
+        '--policy', policy,
         '--env-id', env_id,
         '--num-workers', str(num_workers)]
 
@@ -67,6 +68,7 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
         'CUDA_VISIBLE_DEVICES=',
         sys.executable, 'monitor.py',
         '--log-dir', logdir,
+        '--policy', policy,
         '--env-id', env_id,
         '--num-workers', str(num_workers)]
     if visualise:
@@ -115,7 +117,7 @@ def create_commands(session, num_workers, remotes, env_id, logdir, shell='bash',
 
 def run():
     args = parser.parse_args()
-    cmds, notes = create_commands("a3c", args.num_workers, args.remotes,
+    cmds, notes = create_commands("a3c", args.num_workers, args.remotes, args.policy,
                         args.env_id, args.log_dir, mode=args.mode, visualise=args.visualise)
     if args.dry_run:
         print("Dry-run mode due to -n flag, otherwise the following commands would be executed:")

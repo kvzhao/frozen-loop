@@ -17,7 +17,8 @@ from configs import hparams
     * timeout limit
 """
 
-Batch = namedtuple("Batch", ["local_s", "a", "adv", "r", "terminal"])
+# Why we cannot use obs here?
+Batch = namedtuple("Batch", ["gs", "ls", "a", "adv", "r", "terminal"])
 #Batch = namedtuple("Batch", ["si", "a", "adv", "r", "terminal", "features"])
 
 def discount(x, gamma):
@@ -30,6 +31,7 @@ def process_rollout(rollout, gamma, lambda_=1.0):
     # We should handle the list of dictionay
     #batch_si = np.asarray(rollout.states)
 
+    batch_global_states = np.asarray(rollout.global_states)
     batch_local_states = np.asarray(rollout.local_states)
     batch_a = np.asarray(rollout.actions)
     rewards = np.asarray(rollout.rewards)
@@ -43,8 +45,7 @@ def process_rollout(rollout, gamma, lambda_=1.0):
     batch_adv = discount(delta_t, gamma * lambda_)
 
     #features = rollout.features[0]
-    return Batch(batch_local_states, batch_a, batch_adv, batch_r, rollout.terminal)
-
+    return Batch(batch_global_states, batch_local_states, batch_a, batch_adv, batch_r, rollout.terminal)
 
 class PartialRollout(object):
     """
@@ -53,6 +54,7 @@ class PartialRollout(object):
     """
     def __init__(self):
         #self.states = []
+        self.global_states = []
         self.local_states = []
         self.actions = []
         self.rewards = []
@@ -61,9 +63,10 @@ class PartialRollout(object):
         self.terminal = False
         self.features = []
 
-    def add(self, local_state, action, reward, value, terminal, features=None):
+    def add(self, global_state, local_state, action, reward, value, terminal, features=None):
         #self.states += [state]
         self.local_states += [local_state]
+        self.global_states+= [global_state]
         self.actions += [action]
         self.rewards += [reward]
         self.values += [value]
@@ -74,6 +77,7 @@ class PartialRollout(object):
 
     def extend(self, other):
         assert not self.terminal
+        self.global_states.extend(other.global_states)
         self.local_states.extend(other.local_states)
         self.actions.extend(other.actions)
         self.rewards.extend(other.rewards)
@@ -151,8 +155,9 @@ def env_runner(env, policy, num_local_steps, summary_writer, render):
                 env.render()
 
             # collect the experience
-            local_state = last_state.local_obs
-            rollout.add(local_state, action, reward, value_, terminal)
+            ls = last_state.local_obs
+            gs = last_state.global_obs
+            rollout.add(gs, ls, action, reward, value_, terminal)
             #rollout.add(last_state, action, reward, value_, terminal, last_features)
             length += 1
             rewards += reward

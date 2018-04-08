@@ -56,6 +56,7 @@ class PolicyMonitor(object):
 
         # define environment
         local_space = env.local_observation_space.n
+        global_space = env.global_observation_space.shape
         action_space = env.action_space.n
 
         worker_device = "/job:worker/task:{}/cpu:0".format(self.task)
@@ -64,13 +65,17 @@ class PolicyMonitor(object):
                 """TODO: Add option for policy selection
                 """
                 if self.policy == "simple":
-                    self.network = models.SimplePolicy(local_space, action_space)
+                    self.network = models.SimplePolicy(global_space, local_space, action_space)
+                elif self.policy == "cnn":
+                    self.network = models.CNNPolicy(global_space, local_space, action_space)
                 self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                 trainable=False)
         with tf.device(worker_device):
             with tf.variable_scope("local"):
                 if self.policy == "simple":
-                    self.pi = models.SimplePolicy(local_space, action_space)
+                    self.pi = models.SimplePolicy(global_space, local_space, action_space)
+                elif self.policy == "cnn":
+                    self.pi = models.CNNPolicy(global_space, local_space, action_space)
                 self.pi.global_step = self.global_step
 
         # copy weights from the parameter server to the local model

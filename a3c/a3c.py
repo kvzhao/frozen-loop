@@ -28,6 +28,7 @@ class A3C(object):
         self.policy = policy
         self.task = task
         local_space = env.local_observation_space.n
+        global_space = env.global_observation_space.shape
         action_space = env.action_space.n
 
         # environment information
@@ -37,14 +38,18 @@ class A3C(object):
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
                 if self.policy == "simple":
-                    self.network = models.SimplePolicy(local_space, action_space)
+                    self.network = models.SimplePolicy(global_space, local_space, action_space)
+                elif self.policy == "cnn":
+                    self.network = models.CNNPolicy(global_space, local_space, action_space)
                 self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                 trainable=False)
 
         with tf.device(worker_device):
             with tf.variable_scope("local"):
                 if self.policy == "simple":
-                    self.local_net = pi = models.SimplePolicy(local_space, action_space)
+                    self.local_net = pi = models.SimplePolicy(global_space, local_space, action_space)
+                elif self.policy == "cnn":
+                    self.local_net = pi = models.CNNPolicy(global_space, local_space, action_space)
                 pi.global_step = self.global_step
 
             self.ac = tf.placeholder(tf.float32, [None, env.action_space.n], name="ac")
@@ -151,7 +156,8 @@ class A3C(object):
             fetches = [self.train_op, self.global_step]
 
         feed_dict = {
-            self.local_net.local_state: batch.local_s,
+            self.local_net.local_state: batch.ls,
+            self.local_net.global_state: batch.gs,
             self.ac: batch.a,
             self.adv: batch.adv,
             self.r: batch.r,

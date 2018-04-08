@@ -125,6 +125,8 @@ class IcegameEnv(core.Env):
 
         # action space and state space
         # global_observation_space
+        self.global_observation_space = spaces.Box(low=-1, high=1.0,
+            shape=(self.sL, self.sL, 1), dtype=np.float32)
         self.observation_space = spaces.Box(low=-1, high=1.0,
             shape=(self.L, self.L, 4), dtype=np.float32)
         # local_observation_space
@@ -163,6 +165,7 @@ class IcegameEnv(core.Env):
             act = self.name_action_mapping["metropolis"]
         else:
             act = np.random.choice(guides)
+        print ("auto_step do action : {}".format(act))
         return self.step(act)
 
     def step(self, action):
@@ -518,13 +521,14 @@ class IcegameEnv(core.Env):
             raise ValueError("Only numpy array or list are accepted.")
 
     # TODO: Option of Render on terminal or File.
+    # TODO: Update this function to new apis
     def render(self, mapname ="traj", mode="ansi", close=False):
         #of = StringIO() if mode == "ansi" else sys.stdout
         #print ("Energy: {}, Defect: {}".format(self.sqice.cal_energy_diff(), self.sqice.cal_defect_density()))
         s = None
         # TODO: 
         if (mapname == "traj"):
-            s = self._transf2d(self.sim.get_canvas_map())
+            s = self._transf2d(self.sim.get_state_diff_map())
         start = self.sim.get_agent_init_site()
         start = (int(start/self.sL), int(start%self.sL))
         s[start] = 3
@@ -673,6 +677,9 @@ class IcegameEnv(core.Env):
 
         # global observation
         diff_map = self._transf2d(self.sim.get_state_diff_map())
+        diff_map = np.expand_dims(diff_map, axis=2)
+
+        # stack three maps
 
         # return in terms of dict
         # TODO
@@ -680,7 +687,7 @@ class IcegameEnv(core.Env):
             "local_spins" : local_spins,
             "local_obs"   : local_obs,
             "local_sites" : local_sites,
-            "global_dmap" : diff_map,
+            "global_obs" : diff_map,
         }
 
         return AttrDict(d)
