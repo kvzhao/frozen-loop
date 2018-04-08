@@ -771,7 +771,7 @@ vector<int> SQIceGame::GetStateTp1Map() {
 vector<int> SQIceGame::GetStateDiffMap() {
     vector<int> ordered_diff;
     for (int i =0; i < N; i++) {
-        int spin = state_tp1[latt.indices[i]] - state_t[latt.indices[i]];
+        int spin = (state_tp1[latt.indices[i]] - state_t[latt.indices[i]])/2;
         //int spin = state_tp1[latt.site1d[i]] - state_t[latt.site1d[i]];
         // Should we normalize from [-2, 2] back to [-1, 1]?
         ordered_diff.emplace_back(spin);
