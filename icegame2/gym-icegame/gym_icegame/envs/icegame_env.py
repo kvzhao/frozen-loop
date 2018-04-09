@@ -124,21 +124,23 @@ class IcegameEnv(core.Env):
         self.act2idx  = {v: k for k, v in self.idx2act.items()}
 
         # action space and state space
+
         # global_observation_space
         self.global_observation_space = spaces.Box(low=-1, high=1.0,
             shape=(self.sL, self.sL, 1), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-1, high=1.0,
-            shape=(self.L, self.L, 4), dtype=np.float32)
-        # local_observation_space
+        # local_observation_space (neighbor + agent + physical obs)
         self.local_observation_space = spaces.Discrete(10)
         self.action_space = spaces.Discrete(len(self.idx2act))
         self.reward_range = (-1, 1)
+        # for convention (legacy code)
+        self.observation_space = spaces.Box(low=-1, high=1.0,
+            shape=(self.L, self.L, 4), dtype=np.float32)
 
         # reference configuration: buffer for initial config each episode
         self.refconfig = None
         # TODO: Scheduling reward scale
-        self.reward_scale = 5.0
-        self.reward_threshold = 0.0 # 5 * (1/1024.0)
+        self.reward_scale = 1.0
+        self.reward_threshold = 0.0
         self.reward_trajectory = []
 
         """Choose Observation Function
@@ -169,14 +171,15 @@ class IcegameEnv(core.Env):
         return self.step(act)
 
     def step(self, action):
-        """step function
+        """Step function
             Args: action
+            Returns: obs, reward, done, info
 
             TODO:
                 Taking nested list of actions as a single 'action' on markov chain transition.
         """
         terminate = False
-        reward = 0.0 # -0.000975 # stepwise punishment.
+        reward = 0.0
         obs = None
         info = None
         metropolis_executed = False
@@ -290,13 +293,11 @@ class IcegameEnv(core.Env):
                 # TODO: Check the difference
                 # no need to reset here
                 # self.sim.reset(rnum(self.N))
+                terminate = True
 
             else:
-                self.sim.clear_buffer()
-                reward = 0.0
-
                 """
-                    Rejection or dConfig <= 0
+                    Rejection or dConfig == 0
                         1. Keep updating with new canvas.
                             or
                         Early stop.
@@ -305,6 +306,9 @@ class IcegameEnv(core.Env):
                     Q: How to handle no config change?
                 """
 
+                self.sim.clear_buffer()
+                reward = 0.0
+                terminate = True
             # reset or update
         else:
             """Stepwise feedback:
@@ -312,11 +316,13 @@ class IcegameEnv(core.Env):
                 2. icemove reards
                 3. defect propagation guiding
                 4. #more
-
                 TODO: Write option in init arguments.
             """
             # Check each scale (each of them stays in 0~1)
-            reward = 0.0
+
+            # TODO: calculate reward wrt physical observation
+            _, diffeng_level, _ = self._discrete_criteron(self.physical_observables)
+            reward = diffeng_level / 5.0
 
         obs = self.get_obs()
 
@@ -619,51 +625,12 @@ class IcegameEnv(core.Env):
         local = local_spins + phyical_obs
 
         d = {
-                    "configs_1d": config_tp1_vec,
-                    "configs_2d": config_stack,
-                    "minimaps": minimap_stack,
-                    "local": local,
-                }
+              "configs_1d": config_tp1_vec,
+              "configs_2d": config_stack,
+              "minimaps": minimap_stack,
+              "local": local,
+            }
         return AttrDict(d)
-
-    def _get_local_global_obs(self):
-        """
-            Two types of states:
-                1. global-maps
-                    * agent map
-                    * valid action map
-                    * canvas
-                    * eng map
-                    * defect map
-                2. local info
-                    * local neighboring spins
-                    * physical observables
-
-            return: the dict object with key 
-                * global_map
-                * local_info
-        """
-        config_t_map = self._transf2d(self.sim.get_state_t_map_color())
-        config_tp1_map = self._transf2d(self.sim.get_state_tp1_map_color())
-        agent_map = self._transf2d(self.sim.get_agent_map())
-        canvas_map = self._transf2d(self.sim.get_canvas_map())
-
-        global_map = np.stack([
-            config_t_map,
-            config_tp1_map,
-            agent_map,
-            canvas_map
-        ], axis=self.stacked_axis)
-
-        local_spins = self.sim.get_local_spins()
-        phyical_obs = self.sim.get_phy_observables()
-        # non-spatial information
-        local = local_spins + phyical_obs
-
-        return {
-                    "global_map" : global_map,
-                    "local_info" : local,
-                }
 
     def get_obs(self):
         """Get Observation: Critical function of environments.
@@ -671,9 +638,13 @@ class IcegameEnv(core.Env):
         local_spins = self._transf1d(self.sim.get_local_spins())
         local_sites = self._transf1d(self.sim.get_local_sites())
 
-        # E, D, dC: but these values are too small and close to 0 or 1
+        # E, dE, dC: but these values are too small and close to 0 or 1
         phyobs = self._transf1d(self.sim.get_phy_observables())
-        local_obs = np.concatenate((local_spins, phyobs), axis=0) 
+        disc_phyobs = self._discrete_criteron(phyobs)
+
+        # classify three energy cases
+
+        local_obs = np.concatenate((local_spins, disc_phyobs), axis=0) 
 
         # global observation
         diff_map = self._transf2d(self.sim.get_state_diff_map())
@@ -682,11 +653,15 @@ class IcegameEnv(core.Env):
         # stack three maps
 
         # return in terms of dict
-        # TODO
+        """How RL algorithm handle this?
+            network takes local_obs and global_obs
+            * feed local to forward network (Q: how about using rnn?)
+            * feed global to convolutional network
+        """
         d = {
             "local_spins" : local_spins,
-            "local_obs"   : local_obs,
             "local_sites" : local_sites,
+            "local_obs"   : local_obs,
             "global_obs" : diff_map,
         }
 
@@ -722,6 +697,38 @@ class IcegameEnv(core.Env):
         with open(self.json_file, "a") as f:
             json.dump(record, f)
             f.write(os.linesep)
+
+    def _discrete_criteron(self, phyobs):
+        """ 'Discretize' Energy into several level
+          E:
+            * One defect pair = +1 
+            * Several but not many (5~10) = 0
+            * Far from ice state = -1 (will this happen?)
+          dE: (compare with initail state)
+            * Decrease = +1
+            * Even = 0
+            * Increase = -1
+          dC:
+            * this is so small, we can enlarge the value itself. 
+            * maybe by factor of 10
+
+          Goal: dC increases but dE remains
+        """
+        print (phyobs)
+        E, dE, dC = phyobs
+        # well, E and dE are correlated.
+        num_defects = dE * self.N / 2
+        if (num_defects <= 2):
+            num_defects = +1 
+        elif (num_defects <=5):
+            num_defects = 0
+        else:
+            num_defects = -1
+
+        dC *= 5.0
+
+        newphy = [E, num_defects, dC]
+        return newphy
 
     def env_status(self):
         """Save status into jsonfile.
