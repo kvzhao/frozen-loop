@@ -322,7 +322,8 @@ class IcegameEnv(core.Env):
 
             # TODO: calculate reward wrt physical observation
             _, diffeng_level, _ = self._discrete_criteron(self.physical_observables)
-            reward = diffeng_level / 5.0
+            # need asymmetric design
+            reward = diffeng_level / 100.0
 
         obs = self.get_obs()
 
