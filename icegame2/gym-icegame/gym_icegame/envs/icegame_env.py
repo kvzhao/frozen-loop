@@ -714,7 +714,6 @@ class IcegameEnv(core.Env):
 
           Goal: dC increases but dE remains
         """
-        print (phyobs)
         E, dE, dC = phyobs
         # well, E and dE are correlated.
         num_defects = dE * self.N / 2
