@@ -208,9 +208,6 @@ class IcegameEnv(core.Env):
         if (metropolis_executed):
             """TODO: Add autocorr of config here.
             """
-            # compute the reward which for rejection
-            if self.terminate_mode == "metro":
-                terminate = True
 
             if is_accept > 0 and dConfig > 0:
                 """ Updates Accepted
@@ -353,7 +350,6 @@ class IcegameEnv(core.Env):
         assert(self.agent_site == init_agent_site)
         if create_defect:
             self.sim.flip()
-        self.episode_terminate = False
         # remove this legacy?
 
         state = self.get_obs()
@@ -370,7 +366,6 @@ class IcegameEnv(core.Env):
             site = rnum(self.N)
         init_site = self.sim.reset(site)
         assert(init_site == site)
-        self.episode_terminate = False
         # actually, counter can be called by sim.get_episode()
 
         if create_defect:
@@ -395,12 +390,6 @@ class IcegameEnv(core.Env):
 
     def timeout(self):
         return self.sim.timeout()
-
-    @property
-    def is_terminate(self):
-        """Return whether game is terminate"""
-        # use less
-        return self.episode_terminate
 
     def get_game_status(self):
         """(TODO)Return the game status including steps and physical observables. 
