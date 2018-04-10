@@ -233,7 +233,7 @@ class IcegameEnv(core.Env):
                 # get counters
                 action_counters = self.sim.get_action_statistics()
                 metropolis_times = self.sim.get_updating_counter()
-                update_times = self.sim.get_updated_counter()
+                updated_times = self.sim.get_updated_counter()
 
                 # compute update interval
                 update_interval = total_steps - self.last_update_step
@@ -241,7 +241,7 @@ class IcegameEnv(core.Env):
 
                 # acceptance rate
                 total_acc_rate = self.sim.get_total_acceptance_rate() * 100.0
-                effort =  update_times/total_steps * 100.0
+                effort =  updated_times/total_steps * 100.0
                 # calculate the metropolis reward
                 #acorr = autocorr(statevec, self.refconfig)
                 #reward = (1.0 - acorr) * self.reward_scale
@@ -256,13 +256,16 @@ class IcegameEnv(core.Env):
                     f.write("1D: {}, \n(2D: {})\n".format(self.sim.get_trajectory(), self.convert_1Dto2D(self.sim.get_trajectory())))
                     print ("\tSave loop configuration to file: {}".format(self.ofilename))
 
-                print ("\tTotal accepted number = {}".format(update_times))
+                print ("\tTotal accepted number = {}".format(updated_times))
+                print ("\tTotal Metropolis number = {}".format(metropolis_times))
                 print ("\tAccepted loop length = {}, area = {}".format(loop_length, loop_area))
                 print ("\tAgent walks {} steps in episode, action counters: {}".format(ep_steps, self.sim.get_ep_action_counters()))
                 action_stats = [x / total_steps for x in action_counters]
                 print ("\tStatistics of actions all episodes (ep={}, steps={}) : {}".format(ep, total_steps, action_stats))
                 print ("\tAcceptance ratio (accepted/ # of metropolis) = {}%".format(
-                                                                    update_times * 100.0 / metropolis_times))
+                                                                    updated_times * 100.0 / metropolis_times))
+                print ("\tAcceptance ratio (accepted/ # of episodes) = {}%".format(
+                                                                    updated_times * 100.0 / ep))
                 print ("\tAcceptance ratio (from icegame) = {}%".format(total_acc_rate))
                 print ("\tRunning Effort = {}%".format(effort))
 
@@ -270,14 +273,14 @@ class IcegameEnv(core.Env):
                 info = {
                     "Acceptance Ratio" : total_acc_rate,
                     "Running Effort": effort,
-                    "Updated" : update_times,
+                    "Updated" : updated_times,
                     "Loop Size": loop_length,
                     "Loop Area": loop_area,
                 }
 
                 # Render when special case happened.
-                if loop_area >= 1 or loop_length >= 8:
-                    self.render()
+                #if loop_area >= 1 or loop_length >= 8:
+                    #self.render()
                 self.dump_env_status()
                 self.sim.clear_buffer()
 
@@ -302,6 +305,7 @@ class IcegameEnv(core.Env):
                         2. Wrong decision penalty
                     Q: Should we reset the initial location?
                     Q: How to handle no config change?
+                    Q: This should be some penalty here.
                 """
 
                 self.sim.clear_buffer()
@@ -324,12 +328,19 @@ class IcegameEnv(core.Env):
             # asymmetric reward doest work well.
             # 100 --> L*L --> N
             reward = diffeng_level / (self.L * self.L)
+            #reward = diffeng_level / 100
+
+            # Reset if timeout from env.
+            if (self.sim.timeout()):
+                terminate = True
 
         obs = self.get_obs()
 
         # Add the timeout counter (TODO: Check these codes)
         # Terminate and run monte carlo to prepare new config
         #terminate = True
+
+        ### TODO: Add configuration reset counter!
         #print ("[GAME_ENV] Reset Ice Configuration!")
         #self.sim.reset_config()
 
@@ -717,6 +728,7 @@ class IcegameEnv(core.Env):
         else:
             num_defects = -1
 
+        # hand-crafted value
         dC *= 5.0
 
         newphy = [E, num_defects, dC]
@@ -725,6 +737,7 @@ class IcegameEnv(core.Env):
     def env_status(self):
         """Save status into jsonfile.
             * carefully choose items to be saved.
+            * this is the only import thing should be saved.
         """
         # get current timestamp
         total_steps = self.sim.get_total_steps()
@@ -744,9 +757,14 @@ class IcegameEnv(core.Env):
         start_site = self.sim.get_agent_init_site()
         acceptance = update_times * 100.0 / ep
 
+        # local_step counter
+        local_step = self.sim.get_ep_step_counter()
+        # configuration changes == loop length
+
         d = {
             "Episode": ep,
             "Steps"  : total_steps,
+            "LocalSteps" : local_step,
             "StartSite"  : start_site,
             "Trajectory": trajectory,
             "UpdateTimes": update_times,
