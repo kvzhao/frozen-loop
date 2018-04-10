@@ -68,7 +68,8 @@ def run(args, server):
                             save_summaries_secs=300)
 
     # total number of training steps
-    num_global_steps = int(1e12)
+    # 100M = 1e8
+    num_global_steps = int(1e8)
 
     logger.info(
         "Starting session. If this hangs, we're mostly likely waiting to connect to the parameter server. " +
