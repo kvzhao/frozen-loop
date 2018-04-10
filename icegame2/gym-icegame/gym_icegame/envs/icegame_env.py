@@ -249,6 +249,7 @@ class IcegameEnv(core.Env):
 
                 # TODO: Calculate recent # steps' acceptance rate
                 """Dump resutls into file.
+                    TODO: Different counter
                 """
                 # output to self.ofilename
                 with open(self.ofilename, "a") as f:
@@ -321,7 +322,8 @@ class IcegameEnv(core.Env):
             _, diffeng_level, _ = self._discrete_criteron(self.physical_observables)
 
             # asymmetric reward doest work well.
-            reward = diffeng_level / 100.0
+            # 100 --> L*L --> N
+            reward = diffeng_level / (self.L * self.L)
 
         obs = self.get_obs()
 
