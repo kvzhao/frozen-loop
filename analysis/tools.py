@@ -109,7 +109,11 @@ class LogData(object):
 
   def save_looplen_hist(self, fname):
     lengths, counts = zip(*self.length_counter.items())
-    indices = np.arange(len(counts))
+    total = np.sum(counts)
+    weighted_sum = 0
+    for length, count in self.length_counter.items():
+      weighted_sum += length * count
+    weighted_mean = weighted_sum / total
     width = 0.8
     plt.bar(lengths, counts, width, align='center', color='r')
     plt.title("Loop length Histogram")
@@ -118,6 +122,8 @@ class LogData(object):
     #plt.xticks(indices + width * 0.5, lengths)
     plt.savefig(fname + ".png")
     plt.clf()
+    print ("Statistics: minlen : {}, Maxlen: {}, weighted mean: {}".format(
+        np.min(lengths), np.max(lengths), weighted_mean))
     print ("Save the loop length histogram.")
 
   def generate_loop_animation(self, loop, fname):
