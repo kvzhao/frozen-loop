@@ -11,9 +11,9 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+import imageio
 import numpy as np
 """Work Flow?
-
   How to do animation for !
 """
 
@@ -56,10 +56,27 @@ class LogData(object):
       print ('Log contains {} timestamps.'.format(len(d_list)))
     return d_list
 
-
   def _show_info(self):
     # Call when init is done.
     pass
+
+  def sample_loop_trajectory(self):
+    traj = np.random.choice(self.loops)
+    # maybe show some information
+    print ("Sampled loop: \n length: {}".format(len(traj)))
+    return traj
+  
+  def save_loopmap(self, loop, fname):
+    img = np.zeros(self.N)
+    for l in loop:
+      x, y = l % self.L, l // self.L
+      if (x + y) % 2 == 0:
+        img[l] = 1
+      else:
+        img[l] = -1
+    plt.imshow(img.reshape(self.L, self.L), 'plasma', interpolation='None')
+    plt.savefig(fname + ".png")
+    print ("Save the loop image to {}.".format(fname))
 
   def save_heatmap(self, fname):
     heatmap = np.zeros(self.N)
@@ -101,11 +118,32 @@ class LogData(object):
     #plt.xticks(indices + width * 0.5, lengths)
     plt.savefig(fname + ".png")
     plt.clf()
-    """
-    df = pd.DataFrame.from_dict(self.length_counter, orient='index')
-    bar = df.plot(kind='bar')
-    fig = bar.get_figure()
-    fig.savefig(fname + ".png")
-    """
-
     print ("Save the loop length histogram.")
+
+  def generate_loop_animation(self, loop, fname):
+    """Loop creation animation.
+      * More information is needed, something like
+        action, decision (Huge!), energy changes 
+    """
+    from matplotlib import animation
+    images = []
+    img = np.zeros(self.N)
+    prev = 0
+    fig = plt.figure()
+    im = plt.imshow(img.reshape(self.L, self.L), 'plasma', interpolation='None')
+    for idx in range(len(loop)):
+      for lsite in loop[prev:idx]:
+        # dummy loop, acutally is not a loop
+        x, y = lsite % self.L, lsite//self.L
+        img[lsite] = 1 if (x+y) %2 == 0 else -1
+        im = plt.imshow(img.reshape(self.L, self.L), 'plasma', interpolation='None')
+        images.append([im]) 
+        # tricky: https://stackoverflow.com/questions/18019226/matplotlib-animation
+      prev = idx
+    print ("done parsing the images, start making film...")
+
+    ani = animation.ArtistAnimation(fig, images, 
+          interval=20, blit=True, repeat_delay=500)
+    ani.save(fname + ".mp4")
+    print ("Save the loop animation to {}".format(fname))
+
