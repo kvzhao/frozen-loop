@@ -146,6 +146,7 @@ class IcegameEnv(core.Env):
         """Choose Observation Function
         """
 
+        self.cfg_outdir = "configs"
         # output file
         self.ofilename = "loop_sites.log"
         # render file
@@ -432,6 +433,11 @@ class IcegameEnv(core.Env):
         return AttrDict(d)
 
     def set_output_path(self, path):
+        if not os.path.exists(path):
+            os.mkdir(path)
+        self.cfg_outdir = os.path.join(path, self.cfg_outdir)
+        if not os.path.exists(self.cfg_outdir):
+            os.mkdir(self.cfg_outdir)
         self.ofilename = os.path.join(path, self.ofilename)
         self.rfilename = os.path.join(path, self.rfilename)
         self.json_file = os.path.join(path, self.json_file)
@@ -531,6 +537,21 @@ class IcegameEnv(core.Env):
         else:
             raise ValueError("Only numpy array or list are accepted.")
 
+    def load_ice(self, path):
+        """Read out ice configuration from npy."""
+        loaded = np.load(path)
+        self.set_ice(loaded)
+
+    def save_ice(self):
+        """Save out the ice configuration in numpy format."""
+        s = self._transf1d(self.sim.get_state_t()) # convert into numpy array
+        ep = self.sim.get_episode()
+        fname = "ice_{}".format(ep)
+        fname = os.path.join(self.cfg_outdir, fname)
+        np.save(fname, s)
+        print ("Save the initial configuration @ episode {} to {}".format(
+            ep, self.cfg_outdir))
+
     # TODO: Option of Render on terminal or File.
     # TODO: Update this function to new apis
     def render(self, mapname ="traj", mode="ansi", close=False):
@@ -571,71 +592,6 @@ class IcegameEnv(core.Env):
         with open(self.rfilename, "a") as f:
             f.write("Episode: {}, global step = {}\n".format(self.sim.get_ep_step_counter(), self.sim.get_total_steps()))
             f.write("{}\n".format(screen))
-
-    def _get_multiple_channel_obs(self):
-        """
-            Need more flexible in get_obs. There will may be config, sequence, scalar observed states.
-            TODO: add np.nan_to_num() to prevent ill value
-
-            Three kinds of states:
-                1. configs_2d
-                    * starting config
-                    * current config
-                2. configs_1d
-                    * current config vector --> useless?
-                3. mini-maps
-                    * agent map
-                    * valid action map --> looks confusing
-                    * canvas
-                    * eng map
-                    * defect map
-                4. non-spatial information
-                    * local neighboring spins
-                    * physical observables
-                    not sure we should concatenate them or not
-
-            return: the dict object
-        """
-        st = self.sim.get_state_t_map_color()
-        stp1 = self.sim.get_state_tp1_map_color()
-        config_t_map = self._transf2d(st)
-        config_tp1_map = self._transf2d(stp1)
-
-        config_t_vec = self._transf1d(st)
-        config_tp1_vec = self._transf1d(stp1)
-
-        config_stack = np.stack([
-                        config_t_map,
-                        config_tp1_map
-                        ], axis=self.stacked_axis)
-
-        agent_map = self._transf2d(self.sim.get_agent_map())
-        valid_map = self._transf2d(self.sim.get_valid_action_map())
-        canvas_map = self._transf2d(self.sim.get_canvas_map())
-        energy_map = self._transf2d(self.sim.get_energy_map())
-        defect_map = self._transf2d(self.sim.get_defect_map())
-
-        minimap_stack = np.stack([
-                        agent_map,
-                        valid_map,
-                        canvas_map,
-                        energy_map,
-                        defect_map
-                        ], axis=self.stacked_axis)
-
-        local_spins = self.sim.get_local_spins()
-        phyical_obs = self.sim.get_phy_observables()
-        # non-spatial information
-
-        local = local_spins + phyical_obs
-
-        d = {
-              "configs_1d": config_tp1_vec,
-              "configs_2d": config_stack,
-              "minimaps": minimap_stack,
-              "local": local,
-            }
-        return AttrDict(d)
 
     def get_obs(self):
         """Get Observation: Critical function of environments.
@@ -780,3 +736,4 @@ class IcegameEnv(core.Env):
     def dump_env_status(self):
         d = self.env_status()
         self._append_record(d)
+
