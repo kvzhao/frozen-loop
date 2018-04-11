@@ -167,7 +167,6 @@ class IcegameEnv(core.Env):
             act = self.name_action_mapping["metropolis"]
         else:
             act = np.random.choice(guides)
-        print ("auto_step do action : {}".format(act))
         return self.step(act)
 
     def step(self, action):
@@ -241,7 +240,8 @@ class IcegameEnv(core.Env):
 
                 # acceptance rate
                 total_acc_rate = self.sim.get_total_acceptance_rate() * 100.0
-                effort =  updated_times/total_steps * 100.0
+                #effort =  updated_times/total_steps * 100.0
+                effort = loop_length / ep_steps * 100.0
                 # calculate the metropolis reward
                 #acorr = autocorr(statevec, self.refconfig)
                 #reward = (1.0 - acorr) * self.reward_scale
@@ -256,6 +256,7 @@ class IcegameEnv(core.Env):
                     f.write("1D: {}, \n(2D: {})\n".format(self.sim.get_trajectory(), self.convert_1Dto2D(self.sim.get_trajectory())))
                     print ("\tSave loop configuration to file: {}".format(self.ofilename))
 
+                print ("\tGlobal step: {}, Local step: {}".format(total_steps, ep_steps))
                 print ("\tTotal accepted number = {}".format(updated_times))
                 print ("\tTotal Metropolis number = {}".format(metropolis_times))
                 print ("\tAccepted loop length = {}, area = {}".format(loop_length, loop_area))
@@ -760,6 +761,7 @@ class IcegameEnv(core.Env):
         # local_step counter
         local_step = self.sim.get_ep_step_counter()
         # configuration changes == loop length
+        effort = loop_length / ep_step_counters * 100.0
 
         d = {
             "Episode": ep,
