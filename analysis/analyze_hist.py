@@ -12,13 +12,13 @@ def main():
   if not os.path.exists(args.output):
     os.mkdir(args.output)
 
-  data = LogData(args.logdir)
+  data = LogData(args.logdir, args.output)
 
   fname = '/'.join([args.output, 'length_hist'])
-  data.save_looplen_hist(fname)
+  data.save_looplen_hist("length_hist")
 
   fname = '/'.join([args.output, 'heatmap'])
-  data.save_heatmap(fname)
+  data.save_heatmap("heatmap")
 
 if __name__ == '__main__':
   main()

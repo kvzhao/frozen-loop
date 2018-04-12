@@ -14,17 +14,17 @@ from mpl_toolkits.mplot3d import Axes3D
 import imageio
 import numpy as np
 """Work Flow?
-  How to do animation for !
 """
 
 def create_animation_from_traject():
   pass
 
 class LogData(object):
-  def __init__(self, hist_filename, L=32):
+  def __init__(self, data_path, output_dir, L=32):
     """Construct the data object from data list (time series)"""
 
-    dlist = self.read_json(hist_filename)
+    dlist = self.read_json(data_path)
+    self.output_dir = output_dir
     
     self.steps=[]
     self.episodes=[]
@@ -46,7 +46,7 @@ class LogData(object):
     self.visited_counter = Counter(self.visited_sites)
 
     self._show_info()
-    print ("Load data from {} is done.".format(hist_filename))
+    print ("Load data from {} is done.".format(self.output_dir))
 
   def read_json(self, filename):
     """read from json returns list of lines
@@ -66,7 +66,7 @@ class LogData(object):
     print ("Sampled loop: \n length: {}".format(len(traj)))
     return traj
   
-  def save_loopmap(self, loop, fname):
+  def save_loopmap(self, loop, name):
     img = np.zeros(self.N)
     for l in loop:
       x, y = l % self.L, l // self.L
@@ -75,10 +75,12 @@ class LogData(object):
       else:
         img[l] = -1
     plt.imshow(img.reshape(self.L, self.L), 'plasma', interpolation='None')
+
+    fname = os.path.join(self.output_dir, name)
     plt.savefig(fname + ".png")
     print ("Save the loop image to {}.".format(fname))
 
-  def save_heatmap(self, fname):
+  def save_heatmap(self, name):
     heatmap = np.zeros(self.N)
     total = 0
     for site, visted in self.visited_counter.items():
@@ -89,6 +91,8 @@ class LogData(object):
     plt.imshow(heatmap.reshape(self.L, self.L))
     plt.title("Visting Heatmap 2D")
     plt.colorbar()
+
+    fname = os.path.join(self.output_dir, name)
     plt.savefig(fname + "_2d.png")
     plt.clf()
 
@@ -103,11 +107,20 @@ class LogData(object):
     width = depth = 1
     ax1.bar3d(x, y, bottom, width, depth, top, color='r')
     plt.title("Visting Heatmap 3D")
+
+    fname = os.path.join(self.output_dir, name)
     plt.savefig(fname + "_3d.png")
     plt.clf()
     print ("Save the visting heatmap.")
 
-  def save_looplen_hist(self, fname):
+    # save raw data out
+    data_path = os.path.join(self.output_dir, "data")
+    if not os.path.exists(data_path):
+      os.mkdir(data_path)
+    np.save(data_path + "/visited_counts", heatmap)
+    print ("Save raw data to {}".format(data_path))
+
+  def save_looplen_hist(self, name):
     lengths, counts = zip(*self.length_counter.items())
     total = np.sum(counts)
     weighted_sum = 0
@@ -120,13 +133,23 @@ class LogData(object):
     plt.xlabel("Loop Size")
     plt.ylabel("Counts")
     #plt.xticks(indices + width * 0.5, lengths)
+
+    fname = os.path.join(self.output_dir, name)
     plt.savefig(fname + ".png")
     plt.clf()
     print ("Statistics: minlen : {}, Maxlen: {}, weighted mean: {}".format(
         np.min(lengths), np.max(lengths), weighted_mean))
     print ("Save the loop length histogram.")
 
-  def generate_loop_animation(self, loop, fname):
+    # save raw data out
+    data_path = os.path.join(self.output_dir, "data")
+    if not os.path.exists(data_path):
+      os.mkdir(data_path)
+    data_out = np.stack([lengths, counts], axis=1)
+    np.save(data_path + "/length_hist_raw", data_out)
+    print ("Save raw data to {}".format(data_path))
+
+  def generate_loop_animation(self, loop, name):
     """Loop creation animation.
       * More information is needed, something like
         action, decision (Huge!), energy changes 
@@ -146,10 +169,12 @@ class LogData(object):
         images.append([im]) 
         # tricky: https://stackoverflow.com/questions/18019226/matplotlib-animation
       prev = idx
-    print ("done parsing the images, start making film...")
+    print ("Done parsing the images, start making film...")
 
     ani = animation.ArtistAnimation(fig, images, 
           interval=20, blit=True, repeat_delay=500)
+
+    fname = os.path.join(self.output_dir, name)
     ani.save(fname + ".mp4")
     print ("Save the loop animation to {}".format(fname))
 
