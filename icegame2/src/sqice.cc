@@ -281,9 +281,9 @@ vector<double> SQIceGame::Metropolis() {
 
     // calculates returns
     if (dE == 0.0) {
-        if (_cal_energy_density_of_state(state_tp1) != AVERAGE_GORUND_STATE_ENERGY) {
+        if (_cal_energy_density_of_state(state_t) != AVERAGE_GORUND_STATE_ENERGY) {
             // this condition is used as sanity check
-            std::cout << "[Game]: State has no energy changes but contains defects! Sanity checking fails!\n";
+            std::cout << "[Game]: State has no energy changes but reference state is ruined! Sanity checking fails!\n";
         } else {
             is_accept = true;
         }
