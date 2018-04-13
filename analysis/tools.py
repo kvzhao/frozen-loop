@@ -1,4 +1,8 @@
 import os
+import sys
+from os import listdir
+from os.path import isfile, join
+
 import json
 import argparse
 
@@ -11,31 +15,49 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-import imageio
 import numpy as np
-"""Work Flow?
-"""
-
-def create_animation_from_traject():
-  pass
 
 class LogData(object):
-  def __init__(self, data_path, output_dir, L=32):
-    """Construct the data object from data list (time series)"""
+  def __init__(self, exper_dir, output_dir):
+  #def __init__(self, data_path, output_dir, L=32):
+    """Construct the data object from data list (time series)
 
-    dlist = self.read_json(data_path)
+      TODO:
+        directly load the folder, then parse here.
+        1. recover info from settings.
+        2. attach env_hist and parse.
+        3. restore init config.
+
+      NOTE:
+        * Using attrDict?
+    """
+
+    # folder
+    self.exper_dir = exper_dir
     self.output_dir = output_dir
-    
+
+    # paths
+    self.setting_path = join(self.exper_dir, "env_settings.json")
+    self.data_path = join(self.exper_dir, "env_history.json")
+    self.cfg_path = join(self.exper_dir, "configs")
+
+    # data
+    env_params = self.read_json_todict(self.setting_path) 
+    dlist = self.read_json_tolist(self.data_path)
+
     self.steps=[]
     self.episodes=[]
     self.lengths=[]
     self.loops=[] # list of lists
+    self.num_of_loops = len(self.loops)
     self.visited_sites=[]
-    self.L = L
-    self.N = L ** 2
+
+    self.L = env_params["sL"]
+    self.N = env_params["N"]
 
     for d in dlist:
       self.steps.append(d["Steps"])
+      self.episodes.append(d["Episode"])
       self.lengths.append(d["LoopLength"])
       self.loops.append(d["Trajectory"])
       self.visited_sites.extend(d["Trajectory"])
@@ -44,17 +66,25 @@ class LogData(object):
     self.lengths = np.asarray(self.lengths)
     self.length_counter = Counter(self.lengths)
     self.visited_counter = Counter(self.visited_sites)
+    self.loop_generator = (l for l in self.loops)
+
+    # Save the ice configs list
+    self.cfglist = [f for f in listdir(self.cfg_path) if isfile(join(self.cfg_path, f))]
 
     self._show_info()
     print ("Load data from {} is done.".format(self.output_dir))
 
-  def read_json(self, filename):
+  def read_json_tolist(self, filename):
     """read from json returns list of lines
     """
     with open(filename, 'r') as json_file:
       d_list = [json.loads(line) for line in json_file]
       print ('Log contains {} timestamps.'.format(len(d_list)))
     return d_list
+  
+  def read_json_todict(self, filename):
+    d = json.load(open(filename))
+    return d
 
   def _show_info(self):
     # Call when init is done.
@@ -65,7 +95,16 @@ class LogData(object):
     # maybe show some information
     print ("Sampled loop: \n length: {}".format(len(traj)))
     return traj
-  
+
+  def get_loop(self):
+    return next(self.loop_generator)
+
+  def get_ice_configs(self):
+    # tmp function for current usage
+    path = join(self.cfg_path, self.cfglist[0])
+    print ("Load ice cfg from {}".format(path))
+    return np.load(path)
+
   def save_loopmap(self, loop, name):
     img = np.zeros(self.N)
     for l in loop:
@@ -76,7 +115,7 @@ class LogData(object):
         img[l] = -1
     plt.imshow(img.reshape(self.L, self.L), 'plasma', interpolation='None')
 
-    fname = os.path.join(self.output_dir, name)
+    fname = join(self.output_dir, name)
     plt.savefig(fname + ".png")
     print ("Save the loop image to {}.".format(fname))
 
@@ -92,7 +131,7 @@ class LogData(object):
     plt.title("Visting Heatmap 2D")
     plt.colorbar()
 
-    fname = os.path.join(self.output_dir, name)
+    fname = join(self.output_dir, name)
     plt.savefig(fname + "_2d.png")
     plt.clf()
 
@@ -108,13 +147,13 @@ class LogData(object):
     ax1.bar3d(x, y, bottom, width, depth, top, color='r')
     plt.title("Visting Heatmap 3D")
 
-    fname = os.path.join(self.output_dir, name)
+    fname = join(self.output_dir, name)
     plt.savefig(fname + "_3d.png")
     plt.clf()
     print ("Save the visting heatmap.")
 
     # save raw data out
-    data_path = os.path.join(self.output_dir, "data")
+    data_path = join(self.output_dir, "data")
     if not os.path.exists(data_path):
       os.mkdir(data_path)
     np.save(data_path + "/visited_counts", heatmap)
@@ -134,7 +173,7 @@ class LogData(object):
     plt.ylabel("Counts")
     #plt.xticks(indices + width * 0.5, lengths)
 
-    fname = os.path.join(self.output_dir, name)
+    fname = join(self.output_dir, name)
     plt.savefig(fname + ".png")
     plt.clf()
     print ("Statistics: minlen : {}, Maxlen: {}, weighted mean: {}".format(
@@ -142,7 +181,7 @@ class LogData(object):
     print ("Save the loop length histogram.")
 
     # save raw data out
-    data_path = os.path.join(self.output_dir, "data")
+    data_path = join(self.output_dir, "data")
     if not os.path.exists(data_path):
       os.mkdir(data_path)
     data_out = np.stack([lengths, counts], axis=1)
@@ -160,7 +199,7 @@ class LogData(object):
     prev = 0
     fig = plt.figure()
     im = plt.imshow(img.reshape(self.L, self.L), 'plasma', interpolation='None')
-    for idx in range(len(loop)):
+    for idx in range(len(loop)+1):
       for lsite in loop[prev:idx]:
         # dummy loop, acutally is not a loop
         x, y = lsite % self.L, lsite//self.L
@@ -174,7 +213,46 @@ class LogData(object):
     ani = animation.ArtistAnimation(fig, images, 
           interval=20, blit=True, repeat_delay=500)
 
-    fname = os.path.join(self.output_dir, name)
+    fname = join(self.output_dir, name)
     ani.save(fname + ".mp4")
     print ("Save the loop animation to {}".format(fname))
 
+def estimated_autocorrelation(x):
+    """
+    http://stackoverflow.com/q/14297012/190597
+    http://en.wikipedia.org/wiki/Autocorrelation#Estimation
+    """
+    n = len(x)
+    variance = x.var()
+    x = x-x.mean()
+    r = np.correlate(x, x, mode = 'full')[-n:]
+    assert np.allclose(r, np.array([(x[:n-k]*x[-(n-k):]).sum() for k in range(n)]))
+    result = r/(variance*(np.arange(n, 0, -1)))
+    return result
+
+def inner_prod(x, y):
+  if len(x) != len(y):
+    return 0
+  return sum(i[0] * i[1] for i in zip(x, y))
+
+class IceModel(object):
+  def __init__(self, libicegame="../icegame2/build/src/"):
+    # wrapper for icegame env
+    sys.path.append(libicegame)
+    import gym
+    import gym_icegame
+    self.env = gym.make('IcegameEnv-v0')
+
+  def set_ice(self, state):
+    self.env.set_ice(state)
+
+  def apply_loop(self, loop):
+    old_state = self.env.sim.get_state_t()
+    self.env.sim.follow_trajectory(loop)
+    rets = self.env.sim.metropolis()
+    is_accept, _ , dConfig = rets
+    if (is_accept):
+      self.env.sim.update_config()
+    new_state = self.env.sim.get_state_t()
+    dot = inner_prod(old_state, new_state)
+    return dot
