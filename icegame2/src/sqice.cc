@@ -275,18 +275,18 @@ vector<double> SQIceGame::Metropolis() {
     double Et = _cal_energy_density_of_state(state_tp1);
     double dE = Et - E0;
     // defect function now is not fully supported!
-    double dd = _cal_defect_density_of_state(state_tp1);
     // explicit function call
     int diff_counts = _count_config_difference(state_t, state_tp1);
     double diff_ratio = diff_counts / double(N);
 
     // calculates returns
     if (dE == 0.0) {
-        if (dd != 0.0) {
+        if (_cal_energy_density_of_state(state_tp1) != AVERAGE_GORUND_STATE_ENERGY) {
             // this condition is used as sanity check
             std::cout << "[Game]: State has no energy changes but contains defects! Sanity checking fails!\n";
+        } else {
+            is_accept = true;
         }
-        is_accept = true;
         rets.emplace_back(ACCEPT_VALUE);
     } else {
         rets.emplace_back(REJECT_VALUE);
@@ -882,6 +882,7 @@ int SQIceGame::_cal_defect_number_of_state(const vector<int> &s) {
 }
 
 double SQIceGame::_cal_defect_density_of_state(const vector<int> & s) {
+    // This function is not fully supported.
     double dd = 0.0;
     int num_defects = _cal_defect_number_of_state(s);
     dd = static_cast<double>(num_defects)/N;
