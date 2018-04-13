@@ -95,9 +95,9 @@ void SQIceGame::clear_lists() {
 
 void SQIceGame::update_state_to_config() {
     vector<int> backup = ice_config.Ising;
-    ice_config.Ising = state_tp1;
-    state_0 = state_tp1;
-    state_t = state_tp1;
+    ice_config.Ising = state_t;
+    state_0 = state_t;
+    state_tp1 = state_t;
     // ... Sanity check!
     // NOTE: Now, there is no defect density check!
     if ( _cal_defect_density_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_DEFECT_DENSITY \
@@ -209,7 +209,7 @@ void SQIceGame::MCRun(int mcSteps) {
     state_t = ice_config.Ising;
     state_tp1 = ice_config.Ising;
 
-    std::cout << "[GAME] Average Energy E = " << _cal_energy_density_of_state(state_t) << "\n";
+    std::cout << "[GAME] Average Energy E = " << _cal_energy_density_of_state(state_0) << "\n";
     //std::cout << "[GAME] Defect Density D = " << _cal_defect_density_of_state(state_0) << "\n";
     //std::cout << "[GAME] Config mean = " << config_mean << " , and std = " << config_stdev << "\n";
     // ======== FAILS BELOW ====== //
@@ -265,23 +265,24 @@ void SQIceGame::clear_all() {
 // member functions 
 vector<double> SQIceGame::Metropolis() {
     /* Metropolis operation called by agent.
-        Returns: 
-            results = []
+      Important: 
+        * This function compare s_t with s_0, only update s_0.
+        * Move() function only changes s_tp1, and push traj.
+        * flip_along should be called before running metropolis.
     */
-   // Note: Why we use state_tp1 rather than state_t?
     vector<double> rets;
     bool is_accept = false;
-    double E0 = _cal_energy_density_of_state(state_t); // check this
-    double Et = _cal_energy_density_of_state(state_tp1);
+    double E0 = _cal_energy_density_of_state(state_0); // check this
+    double Et = _cal_energy_density_of_state(state_t);
     double dE = Et - E0;
     // defect function now is not fully supported!
     // explicit function call
-    int diff_counts = _count_config_difference(state_t, state_tp1);
+    int diff_counts = _count_config_difference(state_t, state_0);
     double diff_ratio = diff_counts / double(N);
 
     // calculates returns
     if (dE == 0.0) {
-        if (_cal_energy_density_of_state(state_t) != AVERAGE_GORUND_STATE_ENERGY) {
+        if (_cal_energy_density_of_state(state_0) != AVERAGE_GORUND_STATE_ENERGY) {
             // this condition is used as sanity check
             std::cout << "[Game]: State has no energy changes but reference state is ruined! Sanity checking fails!\n";
         } else {
