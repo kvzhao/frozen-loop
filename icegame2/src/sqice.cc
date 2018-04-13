@@ -287,6 +287,7 @@ vector<double> SQIceGame::Metropolis() {
             std::cout << "[Game]: State has no energy changes but reference state is ruined! Sanity checking fails!\n";
         } else {
             is_accept = true;
+            accepted_looplength.emplace_back(diff_counts);
         }
         rets.emplace_back(ACCEPT_VALUE);
     } else {
