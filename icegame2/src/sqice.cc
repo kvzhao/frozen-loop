@@ -94,18 +94,16 @@ void SQIceGame::clear_lists() {
 }
 
 void SQIceGame::update_state_to_config() {
-    int diff = _cal_config_t_difference();
     vector<int> backup = ice_config.Ising;
-    ice_config.Ising = state_t;
-    state_0 = state_t;
-    state_tp1 = state_t;
+    ice_config.Ising = state_tp1;
+    state_0 = state_tp1;
+    state_t = state_tp1;
     // ... Sanity check!
     // NOTE: Now, there is no defect density check!
     if ( _cal_defect_density_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_DEFECT_DENSITY \
         && _cal_energy_density_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_ENERGY) {
         std::cout << "[GAME] Updated Succesfully!\n";
         updated_counter++; 
-        accepted_looplength.emplace_back(diff);
         // Avoid periodic timeout mechanism rule out preferable results
     } else {
         std::cout << "[GAME] Ice Config is RUINED. Restore.\n";
@@ -211,7 +209,7 @@ void SQIceGame::MCRun(int mcSteps) {
     state_t = ice_config.Ising;
     state_tp1 = ice_config.Ising;
 
-    std::cout << "[GAME] Average Energy E = " << _cal_energy_density_of_state(state_0) << "\n";
+    std::cout << "[GAME] Average Energy E = " << _cal_energy_density_of_state(state_t) << "\n";
     //std::cout << "[GAME] Defect Density D = " << _cal_defect_density_of_state(state_0) << "\n";
     //std::cout << "[GAME] Config mean = " << config_mean << " , and std = " << config_stdev << "\n";
     // ======== FAILS BELOW ====== //
@@ -273,13 +271,13 @@ vector<double> SQIceGame::Metropolis() {
    // Note: Why we use state_tp1 rather than state_t?
     vector<double> rets;
     bool is_accept = false;
-    double E0 = _cal_energy_density_of_state(state_0); // check this
+    double E0 = _cal_energy_density_of_state(state_t); // check this
     double Et = _cal_energy_density_of_state(state_tp1);
     double dE = Et - E0;
     // defect function now is not fully supported!
     double dd = _cal_defect_density_of_state(state_tp1);
     // explicit function call
-    int diff_counts = _count_config_difference(state_t, state_0);
+    int diff_counts = _count_config_difference(state_t, state_tp1);
     double diff_ratio = diff_counts / double(N);
 
     // calculates returns
@@ -369,13 +367,26 @@ void SQIceGame::flip_along_trajectory(const vector<int>& traj) {
             _flip_state_t_site(site);
             #ifdef DEBUG
             std::cout << "--> Flip site " << site 
-                    << " and dE = " << _cal_energy_density_of_state(state_t) - _cal_energy_density_of_state(state_0)
+                    << " and dE = " << _cal_energy_density_of_state(state_t) - _cal_energy_density_of_state(state_t)
                     << ", dn = " << _cal_defect_number_of_state(state_t) 
                     << ", dd = " << _cal_defect_density_of_state(state_t) << endl;
             #endif
         }
     } else {
         std::cout << "[GAME] WARNING: Attempt to flip empty trajectory list!\n";
+    }
+}
+
+void SQIceGame::FollowTrajectory(const boost::python::object &iter) {
+    std::vector<int> traj= std::vector<int> (boost::python::stl_input_iterator<int> (iter),
+                                                    boost::python::stl_input_iterator<int> ());
+    // Notice: this function would not increase counters.
+    if(!traj.empty()) {
+        for (auto const & site : traj) {
+            put_and_flip_agent(site);
+        }
+    } else {
+        std::cout << "[GAME] WARNING: Attempt to follow empty trajectory list!\n";
     }
 }
 
@@ -514,6 +525,7 @@ vector<double> SQIceGame::Flip() {
     return rets;
 }
 
+/// LEGACY CODES, TO BE REMOVED.
 int SQIceGame::go(int dir) {
     // One of the core function.
     // this function handles moveing, so the ep_action should be counted.
@@ -938,18 +950,6 @@ bool SQIceGame::_is_traj_intersect() {
     }
     return meet;
 }
-
-int SQIceGame::_cal_config_t_difference() {
-    // NOTICE: This function should called after flipping trajectory.
-    int diff_counter = 0;
-    for (int i = 0 ; i < N; i++) {
-        if (state_0[i] != state_t[i]) {
-            diff_counter++;
-        }
-    }
-    return diff_counter;
-}
-
 
 // Clear, explicitly compuate the difference.
 int SQIceGame::_count_config_difference(const vector<int> &c1, const vector<int> &c2) {

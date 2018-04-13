@@ -143,6 +143,7 @@ class SQIceGame {
         vector<int> LongLoopAlgorithm();
 
         inline void FlipTrajectory() {flip_along_trajectory(agent_site_trajectory);};
+        void FollowTrajectory(const boost::python::object &iter);
         inline void InitAgentSite(int site) {put_agent(site);};
 
         int Start(int init_site);
@@ -409,6 +410,7 @@ BOOST_PYTHON_MODULE(icegame)
         .def("metropolis", &SQIceGame::Metropolis)
         .def("init_agent_site", &SQIceGame::InitAgentSite)
         .def("flip_trajectory", &SQIceGame::FlipTrajectory)
+        .def("follow_trajectory", &SQIceGame::FollowTrajectory)
         .def("update_config", &SQIceGame::UpdateConfig)
         .def("set_ice", &SQIceGame::SetIce)
 
