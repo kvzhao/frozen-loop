@@ -11,9 +11,6 @@ from envs import create_icegame_env
 import models
 from worker import FastSaver
 
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -64,10 +61,13 @@ def inference(args):
         # summary of rewards
         action_writers = []
         summary_writer = tf.summary.FileWriter(outdir)
+
+        """NOT so useful.
         for act_idx in range(action_space):
             action_writers.append(tf.summary.FileWriter(
                 os.path.join(outdir, "action_{}".format(act_idx))
             ))
+        """
 
         logger.info("Inference events directory: %s", outdir)
         config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
@@ -85,6 +85,9 @@ def inference(args):
 
             # For plotting
             if args.render:
+                import matplotlib.pyplot as plt
+                import matplotlib.gridspec as gridspec
+
                 plt.ion()
                 fig = plt.figure(num=None, figsize=(8, 8), dpi=92, facecolor='w', edgecolor='k')
 
@@ -99,9 +102,11 @@ def inference(args):
                 ind = np.arange(action_space)
                 width = 0.20
                 #action_legends = ["Up", "Down", "Left", "Right", "NextUp", "NextDown", "Metropolis"]
-                action_legends = [">", "v", "<", "^", "", "", "Metro"]
+                action_legends = ["head_0", "head_1", "head_2", "tail_0", "tail_1", "tail_2", "Metro"]
 
-            for ep in range(args.num_episodes):
+                steps_energies=[]
+
+            for ep in range(args.num_tests):
                 """TODO: policy sampling strategy
                     random, greedy and sampled policy.
                 """
@@ -117,9 +122,6 @@ def inference(args):
                     prob_action, action, value_ = fetched[0], fetched[1], fetched[2]
                     #prob_action, action, value_, features = fetched[0], fetched[1], fetched[2], fetched[3:]
 
-                    #TODO: policy sampling strategy
-                    #TODO: Only plot when accepted.
-
                     # Greedy
                     #print ("Prob of actions: {}".format(prob_action))
                     stepAct = action.argmax()
@@ -130,16 +132,21 @@ def inference(args):
                     rewards += reward
                     last_state = state
                     #last_features = features
-                    steps_rewards.append(rewards)
-                    steps_values.append(value_)
 
                     if info:
                         loopsize = info["Loop Size"]
                         looparea = info["Loop Area"]
 
                     """Animation for State and Actions
+                        Show Energy Bar On Screen.
                     """
                     if args.render:
+                        # save list for plotting
+                        steps_rewards.append(rewards)
+                        steps_values.append(value_)
+                        energy, _, _  = env.physical_observables
+                        steps_energies.append(energy)
+
                         ax2.clear()
                         ax2.bar(ind, prob_action)
                         ax2.set_xticks(ind + width / 2)
@@ -151,10 +158,10 @@ def inference(args):
                         ax1.set_title("IceGame: (UpTimes: {})".format(env.sim.get_updated_counter()))
 
                         ax3.clear()
-                        ax3.plot(steps_rewards, linewidth=2)
-                        ax3.plot(steps_values, linewidth=2)
+                        #ax3.plot(steps_rewards, linewidth=2)
+                        ax3.plot(steps_energies, linewidth=2)
 
-                        plt.pause(0.20)
+                        plt.pause(0.05)
                         #plt.clf()
 
                     # store summary
@@ -171,23 +178,21 @@ def inference(args):
                     summary_writer.flush()
 
                     summary = tf.Summary()
+                    """
                     for ac_id in range(action_space):
                         summary.value.add(tag='action_prob', simple_value=float(prob_action[ac_id]))
                         action_writers[ac_id].add_summary(summary, length)
                         action_writers[ac_id].flush()
+                    """
 
                     """TODO:
                         1. Need more concrete idea for playing the game when interfering.
                         2. Save these values for post processing.
                         3. We need penalty for timeout. --> Move timeout into env.
                     """
-                    if length >= 1024:
-                        terminal = True
+                    #if length >= 1024:
+                    #    terminal = True
                     if terminal:
-                        #if length >= timestep_limit:
-                        #    last_state, _, _, _ = env.reset()
-                        last_state = env.reset()
-
                         #last_features = policy.get_initial_features()  # reset lstm memory
                         print("Episode finished. Sum of rewards: %.2f. Length: %d." % (rewards, length))
 
@@ -195,7 +200,7 @@ def inference(args):
                         rewards = 0
                         break
 
-        logger.info('Finished %d true episodes.', args.num_episodes)
+        logger.info('Finished %d true episodes.', args.num_tests)
         if args.render:
             plt.savefig("GameScene.png")
         logger.info("Save the last scene to GameScene.png")
@@ -203,20 +208,7 @@ def inference(args):
 
 
 def main(_):
-    parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('-v', '--verbose', action='count', dest='verbosity', default=0, help='Set verbosity.')
-    parser.add_argument('--task', default=0, type=int, help='Task index')
-    parser.add_argument('--job-name', default="worker", help='worker or ps')
-    parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
-    parser.add_argument('--log-dir', default="/tmp/icegame", help='Log directory path')
-    parser.add_argument('--out-dir', default=None, help='output log directory. Default: log_dir/inference/')
-    parser.add_argument('--env-id', default="IcegameEnv-v0", help='Environment id')
-    parser.add_argument('-p', '--policy', type=str, default='cnn', help='Choose policy network: simple, cnn')
-    parser.add_argument("--num-episodes", default=1000, type=int, help="Number of episodes to run.")
-    parser.add_argument("--render", action="store_true", help="Set true to rendering")
-
-    args = parser.parse_args()
-
+    from params import args
     inference(args)
 
 if __name__ == "__main__":
