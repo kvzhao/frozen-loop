@@ -17,6 +17,19 @@ from mpl_toolkits.mplot3d import Axes3D
 
 import numpy as np
 
+def estimated_autocorrelation(x):
+  """
+  http://stackoverflow.com/q/14297012/190597
+  http://en.wikipedia.org/wiki/Autocorrelation#Estimation
+  """
+  n = len(x)
+  variance = x.var()
+  x = x-x.mean()
+  r = np.correlate(x, x, mode = 'full')[-n:]
+  assert np.allclose(r, np.array([(x[:n-k]*x[-(n-k):]).sum() for k in range(n)]))
+  result = r/(variance*(np.arange(n, 0, -1)))
+  return result
+
 class LogData(object):
   def __init__(self, exper_dir, output_dir):
   #def __init__(self, data_path, output_dir, L=32):
@@ -35,6 +48,9 @@ class LogData(object):
     # folder
     self.exper_dir = exper_dir
     self.output_dir = output_dir
+
+    if not os.path.exists(self.output_dir):
+      os.mkdir(self.output_dir)
 
     # paths
     self.setting_path = join(self.exper_dir, "env_settings.json")
@@ -216,24 +232,20 @@ class LogData(object):
     fname = join(self.output_dir, name)
     ani.save(fname + ".mp4")
     print ("Save the loop animation to {}".format(fname))
+  
+  def cal_autocorr(self, observables, name):
+    """Calculate and save auto-correlation function."""
+    acorr = estimated_autocorrelation(observables)
+    plt.plot(self.episodes, acorr)
+    fname = join(self.output_dir, name)
+    plt.savefig(fname + ".png")
+    data_path = join(self.output_dir, "data")
+    if not os.path.exists(data_path):
+      os.mkdir(data_path)
+    np.save(data_path + "/acorr", acorr)
+    print ("Save raw data to {}".format(data_path))
+    return acorr
 
-def estimated_autocorrelation(x):
-    """
-    http://stackoverflow.com/q/14297012/190597
-    http://en.wikipedia.org/wiki/Autocorrelation#Estimation
-    """
-    n = len(x)
-    variance = x.var()
-    x = x-x.mean()
-    r = np.correlate(x, x, mode = 'full')[-n:]
-    assert np.allclose(r, np.array([(x[:n-k]*x[-(n-k):]).sum() for k in range(n)]))
-    result = r/(variance*(np.arange(n, 0, -1)))
-    return result
-
-def inner_prod(x, y):
-  if len(x) != len(y):
-    return 0
-  return sum(i[0] * i[1] for i in zip(x, y))
 
 class IceModel(object):
   def __init__(self, libicegame="../icegame2/build/src/"):
@@ -246,13 +258,16 @@ class IceModel(object):
   def set_ice(self, state):
     self.env.set_ice(state)
 
+  def get_ice(self):
+    return self.env.sim.get_state_t()
+
   def apply_loop(self, loop):
-    old_state = self.env.sim.get_state_t()
     self.env.sim.follow_trajectory(loop)
+    self.env.sim.flip_trajectory()
     rets = self.env.sim.metropolis()
     is_accept, _ , dConfig = rets
-    if (is_accept):
+    if (is_accept == 1):
       self.env.sim.update_config()
-    new_state = self.env.sim.get_state_t()
-    dot = inner_prod(old_state, new_state)
-    return dot
+    # clear trajectory buffer.
+    self.env.sim.clear_buffer()
+    return dConfig
