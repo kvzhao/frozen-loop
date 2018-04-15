@@ -132,12 +132,14 @@ class IcegameEnv(core.Env):
         self.local_observation_space = spaces.Discrete(10)
         self.action_space = spaces.Discrete(len(self.idx2act))
         self.reward_range = (-1, 1)
+
         # for convention (legacy code)
         self.observation_space = spaces.Box(low=-1, high=1.0,
             shape=(self.L, self.L, 4), dtype=np.float32)
 
         # reference configuration: buffer for initial config each episode
         self.refconfig = None
+
         # TODO: Scheduling reward scale
         self.reward_scale = 1.0
         self.reward_threshold = 0.0
@@ -153,7 +155,8 @@ class IcegameEnv(core.Env):
         self.rfilename = "loop_renders.log"
         # save log to json for future analysis
         self.json_file = "env_history.json"
-        self.env_settinglog_file = "env_settings.log"
+        # Need more info writing down in env settings
+        self.env_settinglog_file = "env_settings.json"
 
         self.stacked_axis = 2
 
@@ -252,10 +255,10 @@ class IcegameEnv(core.Env):
                 """Dump resutls into file.
                     TODO: Different counter
                 """
-                # output to self.ofilename
-                with open(self.ofilename, "a") as f:
-                    f.write("1D: {}, \n(2D: {})\n".format(self.sim.get_trajectory(), self.convert_1Dto2D(self.sim.get_trajectory())))
-                    print ("\tSave loop configuration to file: {}".format(self.ofilename))
+                # output to self.ofilename: NOTE: No need to save this, all info in hist.json.
+                #with open(self.ofilename, "a") as f:
+                #    f.write("1D: {}, \n(2D: {})\n".format(self.sim.get_trajectory(), self.convert_1Dto2D(self.sim.get_trajectory())))
+                #    print ("\tSave loop configuration to file: {}".format(self.ofilename))
 
                 print ("\tGlobal step: {}, Local step: {}".format(total_steps, ep_steps))
                 print ("\tTotal accepted number = {}".format(updated_times))
@@ -442,12 +445,8 @@ class IcegameEnv(core.Env):
         self.rfilename = os.path.join(path, self.rfilename)
         self.json_file = os.path.join(path, self.json_file)
         self.env_settinglog_file = os.path.join(path, self.env_settinglog_file)
-        print ("Set environment logging to {}".format(self.ofilename))
-        print ("Set loop and sites logging to {}".format(self.rfilename))
         print ("Set results dumpping path to {}".format(self.json_file))
         print ("Set env setting log path to {}".format(self.env_settinglog_file))
-
-        self.save_env_settings()
 
     @property
     def agent_site(self):
@@ -552,6 +551,9 @@ class IcegameEnv(core.Env):
         print ("Save the initial configuration @ episode {} to {}".format(
             ep, self.cfg_outdir))
 
+    def reset_ice_config(self):
+        pass
+
     # TODO: Option of Render on terminal or File.
     # TODO: Update this function to new apis
     def render(self, mapname ="traj", mode="ansi", close=False):
@@ -637,7 +639,8 @@ class IcegameEnv(core.Env):
         return self
 
     def save_env_settings(self):
-        print ("")
+        print ("TODO: Change this into dump json")
+        print ("TODO, also Recover setting from file.")
         # Write settings into the logfile, modified when setting function is called.
         with open(self.env_settinglog_file, "a") as f:
             # TODO: write new parameters.
@@ -654,8 +657,8 @@ class IcegameEnv(core.Env):
         # suppose originally we have one dim vector
         return np.array(s, dtype=np.float32)
 
-    def _append_record(self, record):
-        with open(self.json_file, "a") as f:
+    def _append_record(self, record, fname):
+        with open(fname, "a") as f:
             json.dump(record, f)
             f.write(os.linesep)
 
@@ -690,6 +693,17 @@ class IcegameEnv(core.Env):
 
         newphy = [E, num_defects, dC]
         return newphy
+
+    def env_setting(self):
+        settings = {
+            "N" : self.N,
+            "sL" : self.sL,
+            "L" : self.L,
+            "R_scale" : self.reward_scale,
+            "R_upper_thres" : self.reward_threshold,
+            "R_lower_thres" : self.reward_threshold,
+        }
+        return AttrDict(settings)
 
     def env_status(self):
         """Save status into jsonfile.
@@ -735,5 +749,10 @@ class IcegameEnv(core.Env):
 
     def dump_env_status(self):
         d = self.env_status()
-        self._append_record(d)
+        self._append_record(d, self.json_file)
+
+    def dump_env_setting(self):
+        d = self.env_setting()
+        with open(self.env_settinglog_file, "w") as f:
+            json.dump(d, f)
 
