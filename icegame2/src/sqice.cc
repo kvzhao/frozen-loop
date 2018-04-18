@@ -100,8 +100,7 @@ void SQIceGame::update_state_to_config() {
     state_tp1 = state_t;
     // ... Sanity check!
     // NOTE: Now, there is no defect density check!
-    if ( _cal_defect_density_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_DEFECT_DENSITY \
-        && _cal_energy_density_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_ENERGY) {
+    if (_cal_energy_density_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_ENERGY) {
         std::cout << "[GAME] Updated Succesfully!\n";
         updated_counter++; 
         // Avoid periodic timeout mechanism rule out preferable results
@@ -845,31 +844,6 @@ double SQIceGame::_cal_energy_density_of_state(const vector<int> & s) {
     return eng;
 }
 
-double SQIceGame::_cal_energy_of_site(const vector<int> &s, int site) {
-    // TODO: FIX
-    double se = 0.0;
-    int i = site;
-    if (latt.sub[i] == 1) {
-        se = s[i] * (s[latt.NN[i][0]]
-                        +s[latt.NN[i][1]]
-                        +s[latt.NN[i][2]]
-                        +s[latt.NN[i][3]]
-                        +s[latt.NNN[i][0]]
-                        +s[latt.NNN[i][2]]
-                        );
-    } else {
-        se = s[i] * (s[latt.NN[i][0]]
-                        +s[latt.NN[i][1]]
-                        +s[latt.NN[i][2]]
-                        +s[latt.NN[i][3]]
-                        +s[latt.NNN[i][1]]
-                        +s[latt.NNN[i][3]]
-                        );
-    }
-    se = J1 * se;
-    return se;
-}
-
 int SQIceGame::_cal_defect_number_of_state(const vector<int> &s) {
     int num_defects = 0;
     for (int i = 0 ; i < N; i++) {
@@ -881,6 +855,29 @@ int SQIceGame::_cal_defect_number_of_state(const vector<int> &s) {
         //}
     }
     return num_defects;
+}
+
+double SQIceGame::_cal_symmetric_defect_density_of_state(const vector<int> &state) {
+    int num_defects = 0;
+    for (int i = 0; i < N; ++i) {
+        // notice: use index rather than site.
+        //if (latt.sub[i] == 0) {
+            int s = state[i];
+            int s0 = state[latt.NN[i][0]];
+            int s1 = state[latt.NN[i][1]];
+            int s2 = state[latt.NN[i][2]];
+            int s3 = state[latt.NN[i][3]];
+            int s4 = state[latt.NN[i][4]];
+            int s5 = state[latt.NN[i][5]];
+            bool symmetric = (s==s1==s4) && (s2==s0) && (s3==s5);
+            //bool symmetric = (s==s1) && (s0==s2);
+            if (symmetric) {
+                num_defects++;
+            }
+        //}
+    }
+    //std::cout << "Number of symmetric defect = " << num_defects << "\n";
+    return static_cast<double>(num_defects)/N;
 }
 
 double SQIceGame::_cal_defect_density_of_state(const vector<int> & s) {

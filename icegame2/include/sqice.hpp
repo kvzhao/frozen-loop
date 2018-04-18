@@ -191,6 +191,9 @@ class SQIceGame {
         inline vector<int> GetLocalSites() {return get_local_sites();};
 
         vector<double> GetPhyObservables();
+        inline double GetSymmetricDefect() {
+            // Not sure, we should measure s_t or s_tp1?
+            return _cal_symmetric_defect_density_of_state(state_t);};
 
         // Statistical Informations
         inline unsigned long GetTotalSteps() {return num_total_steps;};
@@ -275,8 +278,8 @@ class SQIceGame {
 
         int _cal_energy_of_state(const vector<int> &s);
         double _cal_energy_density_of_state(const vector<int> &s);
-        double _cal_energy_of_site(const vector<int> &s, int site);
         double _cal_defect_density_of_state(const vector<int> &s);
+        double _cal_symmetric_defect_density_of_state(const vector<int> &s);
         int _cal_defect_number_of_state(const vector<int> &s);
         int _cal_config_t_difference();
         int _count_config_difference(const vector<int> &c1, const vector<int> &c2);
@@ -433,9 +436,10 @@ BOOST_PYTHON_MODULE(icegame)
         .def("get_neighbor_sites", &SQIceGame::GetNeighborSites)
 
         .def("get_phy_observables", &SQIceGame::GetPhyObservables)
+        .def("get_symmetric_defect", &SQIceGame::GetSymmetricDefect)
 
 
-        // LEGACY or REMOVE
+        // LEGACY or TO BE REMOVED
         .def("get_local_spins", &SQIceGame::GetLocalSpins)
         .def("get_local_sites", &SQIceGame::GetLocalSites)
 
