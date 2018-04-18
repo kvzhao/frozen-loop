@@ -1406,3 +1406,106 @@ void Square_ice::initialize_observable(Sample* ss, Lattice* la, double t, vector
 // -------------------------------------------------------------------------------------------------------------
 
 
+
+// -----------------------------------------------------------------------------------------------------------
+// 2D square ice model with nearest-neighbor interaction
+// update algorithm: SSF
+// measured quantity: energy, magnetization, acceptance
+// 		      energy_update, magnetization_update
+// initial state: random configuration, ferromagnetic orderded state 
+// -----------------------------------------------------------------------------------------------------------
+
+double Square_ice_F::FE(int p, Sample* ss, Lattice* la){
+    // calculate the plaquette energy for non-degenerate ice states
+    short ice_rule1 = ss->Ising[p] + ss->Ising[la->NN[p][0]] + ss->Ising[la->NN[p][1]] + ss->Ising[la->NN[p][2]];
+    short ice_rule2 = ss->Ising[p] + ss->Ising[la->NN[p][3]] + ss->Ising[la->NN[p][4]] + ss->Ising[la->NN[p][5]];
+    double fe = 0;
+
+    if (ice_rule1 == 0){
+      if (ss->Ising[p] == ss->Ising[la->NN[p][1]]){
+	fe += 1;
+      }
+    }
+    if (ice_rule2 == 0){
+      if (ss->Ising[p] == ss->Ising[la->NN[p][4]]){
+	fe += 1;
+      }
+    }
+
+    return fe;
+}
+
+double Square_ice_F::FE_diff(int p, Sample* ss, Lattice* la){
+
+    double fe_before = FE(p, ss, la);
+    ss->Ising[p] *= -1;
+    double fe_after = FE(p, ss, la);
+    ss->Ising[p] *= -1;
+
+    return (fe_after - fe_before);
+}
+
+void Square_ice_F::MCstep_SSF(Sample* ss, Lattice* la){
+      
+      double acceptance = 0;
+      
+      for (int j = 0 ; j < N; j++){
+	  if ( SSF(ss, la) )
+	    acceptance++;
+      }
+      ss->acceptance_SSF = acceptance;
+}
+
+
+bool Square_ice_F::SSF(Sample* ss, Lattice* la){
+      //cout << " Calling new SSF" << endl;
+      int random = (uni01_sampler() * N);
+      double delta = (-2.0) * SE(random, ss, la) * J[0] + FE_diff(random, ss, la)*J[1];
+      double weight = exp(-delta / ss->get_temperature() );
+      double dice = uni01_sampler();
+      
+      if (dice < weight){
+	//ss->magnetization_update[0] += (-2.0) * cal_Mag(random, 0, ss, la);
+	ss->Ising[random] *= -1;
+	ss->energy_update += delta;
+	
+	return true;
+      }
+      else{
+	return false;
+      }      
+}
+
+
+void Square_ice_F::initialization(Sample* ss, Lattice* la, int initial_state){
+  
+  switch(initial_state){
+    case 1:  // ground state
+	     for(int i = 0; i < N; i++){
+	       if ( la->sub[i] % 2 == 0)
+		  ss->Ising[i] = -1;
+	       else
+		  ss->Ising[i] = 1;
+	     }
+	     break;
+    case 0:  // random initial state
+	     for (int i = 0; i < N; i++)
+	       ss->Ising[i] = 2 * int( uni01_sampler() * 2) - 1;
+	   
+  }
+}
+
+void Square_ice_F::initialize_observable(Sample* ss, Lattice* la, double t, vector<double> h){
+  ss->set_temperature(t);
+  ss->resize_field(1);
+  ss->set_field(h[0], 0);
+
+  ss->resize_magnetization(1);
+  ss->resize_order(0);
+
+  ss->set_energy(total_energy(ss, la));
+  cout << "F Model initailization: set_energy = " << total_energy(ss, la)/double(N) << endl;
+  ss->set_magnetization(0, magnetization(ss, la));
+
+}
+

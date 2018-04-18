@@ -35,6 +35,7 @@ class Hamiltonian{
     int R;
     int Num_neighbors;
 
+    vector<double> J; // exchange coupling strength 
 };
 
 class Ising : public Hamiltonian{
@@ -188,6 +189,20 @@ class Square_ice : public Hamiltonian{
     static double obs_magnetization(Sample*, Lattice*, vector<double> &);
     static double obs_acceptanceSSF(Sample*, Lattice*, vector<double> &);
     static double defect_density(Sample*, Lattice*, vector<double> &);
+    void initialization(Sample*, Lattice*, int);
+    void initialize_observable(Sample*, Lattice*, double, vector<double>);
+};
+
+class Square_ice_F : public Square_ice{
+
+  public:
+    Square_ice_F(INFO info, int nei) : Square_ice(info, nei){}; // dont use this.
+    Square_ice_F() : Square_ice() {};
+    //~Square_ice_F();
+    void MCstep_SSF(Sample*, Lattice*);
+    bool SSF(Sample*, Lattice*);
+    double FE_diff(int, Sample*, Lattice*);
+    static double FE(int, Sample*, Lattice*);
     void initialization(Sample*, Lattice*, int);
     void initialize_observable(Sample*, Lattice*, double, vector<double>);
 };
