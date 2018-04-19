@@ -1415,6 +1415,31 @@ void Square_ice::initialize_observable(Sample* ss, Lattice* la, double t, vector
 // initial state: random configuration, ferromagnetic orderded state 
 // -----------------------------------------------------------------------------------------------------------
 
+void Square_ice_F::init(INFO info) {
+  L = info.lattice_size;
+  N = info.Num_sites;
+  R = info.Num_replicas;
+  Num_neighbors = info.Num_neighbors;
+  // Default but at least leagal value.
+  J1 = 1.0;
+  J2 = -0.1;
+}
+
+void Square_ice_F::set_J1(double J) {
+  J1 = J;
+  cout << " ------- Set parameter J1 = " << J1 << endl;
+}
+
+void Square_ice_F::set_J2(double J) {
+  if (J > 0) {
+    std::cout << "The J2 coupling (eps/2) should be less than 0, set default value\n";
+    J2 = -0.1;
+  } else {
+    J2 = J;
+  }
+  cout << " ------- Set parameter J2 = " << J2 << endl;
+}
+
 double Square_ice_F::FE(int p, Sample* ss, Lattice* la){
     // calculate the plaquette energy for non-degenerate ice states
     short ice_rule1 = ss->Ising[p] + ss->Ising[la->NN[p][0]] + ss->Ising[la->NN[p][1]] + ss->Ising[la->NN[p][2]];
@@ -1476,6 +1501,13 @@ bool Square_ice_F::SSF(Sample* ss, Lattice* la){
       }      
 }
 
+double Square_ice_F::total_energy(Sample* ss, Lattice* la) {
+  double eng = 0.0;
+  for (int i = 0; i < N; i++) {
+    eng += J1*SE(i, ss, la) + J2*FE(i, ss, la);
+  }
+  return eng/2.0;
+}
 
 void Square_ice_F::initialization(Sample* ss, Lattice* la, int initial_state){
   
