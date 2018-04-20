@@ -1483,9 +1483,8 @@ void Square_ice_F::MCstep_SSF(Sample* ss, Lattice* la){
 
 
 bool Square_ice_F::SSF(Sample* ss, Lattice* la){
-      //cout << " Calling new SSF" << endl;
       int random = (uni01_sampler() * N);
-      double delta = (-2.0) * SE(random, ss, la) * J[0] + FE_diff(random, ss, la)*J[1];
+      double delta = (-2.0) * SE(random, ss, la) * J1 + FE_diff(random, ss, la) * J2 ;
       double weight = exp(-delta / ss->get_temperature() );
       double dice = uni01_sampler();
       

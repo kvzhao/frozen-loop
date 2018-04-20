@@ -93,8 +93,9 @@ void Sample::set_magnetization(int a, double m){
     magnetization_update[a] = m;
 }
 
-void Sample::set_temperature(double t){
-      temperature = t;
+void Sample::set_temperature(double t) {
+  std::cout << "set temperature (sample): " << t << "\n";
+  temperature = t;
 }
 
 void Sample::resize_field(int n){
