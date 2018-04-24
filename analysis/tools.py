@@ -61,34 +61,68 @@ class LogData(object):
     env_params = self.read_json_todict(self.setting_path) 
     dlist = self.read_json_tolist(self.data_path)
 
-    self.steps=[]
-    self.episodes=[]
-    self.lengths=[]
-    self.loops=[] # list of lists
-    self.num_of_loops = len(self.loops)
-    self.visited_sites=[]
+    self._steps=[]
+    self._episodes=[]
+    self._lengths=[]
+    self._loops=[] # list of lists
+    self._visited_sites=[]
+
+    # slicing time series
+    self.start_idx = 0
+    self.end_idx = None
 
     self.L = env_params["sL"]
     self.N = env_params["N"]
 
     for d in dlist:
-      self.steps.append(d["Steps"])
-      self.episodes.append(d["Episode"])
-      self.lengths.append(d["LoopLength"])
-      self.loops.append(d["Trajectory"])
-      self.visited_sites.extend(d["Trajectory"])
+      self._steps.append(d["Steps"])
+      self._episodes.append(d["Episode"])
+      self._lengths.append(d["LoopLength"])
+      self._loops.append(d["Trajectory"])
+      self._visited_sites.extend(d["Trajectory"])
 
-    self.steps = np.asarray(self.steps)
-    self.lengths = np.asarray(self.lengths)
-    self.length_counter = Counter(self.lengths)
-    self.visited_counter = Counter(self.visited_sites)
-    self.loop_generator = (l for l in self.loops)
+    self._steps = np.asarray(self._steps)
+    self._lengths = np.asarray(self._lengths)
+    self._episodes = np.asarray(self._episodes)
+    self._loops = np.asarray(self._loops)
+    self._visited_sites = np.asarray(self._visited_sites)
+
+    # How about this counter...
+    # TODO: maybe reset when set idx is called.
+    self.length_counter = Counter(self._lengths)
+    self.visited_counter = Counter(self._visited_sites)
+    self.loop_generator = (l for l in self._loops)
+    self.total_number_of_data = len(self._steps)
+
+    # well, think about this...
+    self.num_of_loops = len(self.loops)
 
     # Save the ice configs list
     self.cfglist = [f for f in listdir(self.cfg_path) if isfile(join(self.cfg_path, f))]
 
     self._show_info()
-    print ("Load data from {} is done.".format(self.output_dir))
+    print ("Load data from {} is done. Total number of data: {}".format(
+      self.output_dir, self.total_number_of_data))
+
+  @property
+  def steps(self):
+    return self._steps[self.start_idx:self.end_idx]
+
+  @property
+  def lengths(self):
+    return self._lengths[self.start_idx:self.end_idx]
+
+  @property
+  def loops(self):
+    return self._loops[self.start_idx:self.end_idx]
+
+  @property
+  def episodes(self):
+    return self._episodes[self.start_idx:self.end_idx]
+
+  @property
+  def visited_sites(self):
+    return self._visited_sites[self.start_idx:self.end_idx]
 
   def read_json_tolist(self, filename):
     """read from json returns list of lines
@@ -101,6 +135,17 @@ class LogData(object):
   def read_json_todict(self, filename):
     d = json.load(open(filename))
     return d
+
+  def set_start_index(self, idx):
+    """Check time seris boundary
+      TODO: set start by episodes
+    """
+    if idx >= 0 and idx < self.total_number_of_data:
+      self.start_idx = idx
+  
+  def set_end_index(self, idx):
+    if idx >= 0 and idx < self.total_number_of_data:
+      self.end_idx = idx
 
   def _show_info(self):
     # Call when init is done.
@@ -239,6 +284,7 @@ class LogData(object):
     plt.plot(self.episodes, acorr)
     fname = join(self.output_dir, name)
     plt.savefig(fname + ".png")
+    print ("Save fig to {}".format(fname))
     data_path = join(self.output_dir, "data")
     if not os.path.exists(data_path):
       os.mkdir(data_path)
@@ -260,6 +306,9 @@ class IceModel(object):
 
   def get_ice(self):
     return self.env.sim.get_state_t()
+
+  def get_defect(self):
+    return self.env.sim.get_symmetric_defect()
 
   def apply_loop(self, loop):
     self.env.sim.follow_trajectory(loop)
