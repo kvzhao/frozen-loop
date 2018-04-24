@@ -17,6 +17,7 @@ SQIceGame::SQIceGame (INFO info) : sim_info(info) {
     h1_t = 0.0;
     h2_t = 0.0;
     h3_t = 0.0;
+    // Default coupling
     J1 = 1.0;
 
     // Agent information
@@ -184,7 +185,7 @@ void SQIceGame::SetIce(const boost::python::object &iter) {
     }
 } 
 
-void SQIceGame::MCRun(int mcSteps) {
+double SQIceGame::MCRun(int mcSteps) {
     /*
         Prepare an ice state for game
     */
@@ -220,7 +221,7 @@ void SQIceGame::MCRun(int mcSteps) {
     std::cout << "[GAME] Defect Density D = " << _cal_defect_density_of_state(state_0) << "\n";
     std::cout << "[GAME] Config mean = " << config_mean << " , and std = " << config_stdev << "\n";
     */
-
+    return Etot;
 }
 
 // Start: Just put the agent on the site

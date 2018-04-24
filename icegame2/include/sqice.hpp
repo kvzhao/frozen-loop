@@ -117,8 +117,8 @@ class SQIceGame {
         void InitModel();
         void SetTemperature(double T);
 
-        // Equalibirum
-        void MCRun(int mcSteps);
+        // Equalibirum, return total energy
+        double MCRun(int mcSteps);
 
         // Two kinds of action operation
         //    * directional action (up/down/left/right/upper_next/lower_next)
