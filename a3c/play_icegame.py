@@ -60,7 +60,7 @@ def inference(args):
 
         # summary of rewards
         action_writers = []
-        summary_writer = tf.summary.FileWriter(outdir)
+        #summary_writer = tf.summary.FileWriter(outdir)
 
         """NOT so useful.
         for act_idx in range(action_space):
@@ -165,6 +165,7 @@ def inference(args):
                         #plt.clf()
 
                     # store summary
+                    """
                     summary = tf.Summary()
                     summary.value.add(tag='ep_{}/reward'.format(ep), simple_value=reward)
                     summary.value.add(tag='ep_{}/netreward'.format(ep), simple_value=rewards)
@@ -178,7 +179,6 @@ def inference(args):
                     summary_writer.flush()
 
                     summary = tf.Summary()
-                    """
                     for ac_id in range(action_space):
                         summary.value.add(tag='action_prob', simple_value=float(prob_action[ac_id]))
                         action_writers[ac_id].add_summary(summary, length)
