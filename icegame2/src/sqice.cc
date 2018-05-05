@@ -858,7 +858,7 @@ int SQIceGame::_cal_defect_number_of_state(const vector<int> &s) {
     return num_defects;
 }
 
-double SQIceGame::_cal_symmetric_defect_density_of_state(const vector<int> &state) {
+double SQIceGame::_cal_symmetric_vertex_density_of_state(const vector<int> &state) {
     int num_defects = 0;
     for (int i = 0; i < N; ++i) {
         // notice: use index rather than site.
@@ -1174,6 +1174,7 @@ vector<int> SQIceGame::GuideAction() {
         candidates.emplace_back(NULL_SITE);
     }
 
+    // TODO: Return vector of probs.
     return candidates;
 }
 
