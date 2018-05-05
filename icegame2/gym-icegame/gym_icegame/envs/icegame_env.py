@@ -10,12 +10,19 @@ from gym import error, spaces, utils, core
 #from six import StingIO
 import sys, os
 import json
+import time
 import random
 import numpy as np
 from icegame import SQIceGame, INFO
-import time
 from collections import deque
 from datetime import datetime
+from pprint import pprint
+
+# for subregion mechanism
+import scipy
+import skimage
+from skimage.transform import resize
+from subregion_tools import move_center, periodic_crop
 
 rnum = np.random.randint
 
@@ -60,38 +67,51 @@ def autocorr(statevec, refvec):
 
 class IcegameEnv(core.Env):
     def __init__ (self, L, kT, J, 
-                    stepwise_reward="constant",
-                    end_reward="loopsize",
-                    terminate_mode="trial",
-                    obs_type="multi",
+                    num_mcsteps = 4000,
+                    defect_upper_thres=2,
+                    defect_lower_thres=10,
+                    dconfig_amp = 5,
+                    local_eng_level = True,
+                    stepwise_invfactor = 100.0,
                 ):
         """IceGame
             *** Considering more action and state spaces. Use autocorr as reward. ***
           Args:
-            stepwise:
-            endreward:
-            terminate_mode:
-                * metro: Each time metropolis is executed, then call it an episode.
-                * trial: Finite trial times each episodes
             obs_type (observation type):
-                * multi:
-                * global_local:
+                * local spins + energy level
+                * local spins (w/o energy level)
+                * global difference map
+            discrete criterion:
+              * --- num_defects <= defect_upper_thres
+              * --- num_defects <= defect_lower_thres
+              * dC amplification
             reset_each_epsidoes:
                 reset configuration each # of episodes
+            write_record (bool): (not urgent)
+            * Set the reward thresholds as traning hyper-params.
+
+            TODO: Do we need to use set_physical_condition() & set_traninig_condition()
+                  in our constructor?
         """
+
+        # These parameters are called physical conditions
         self.L = L
         self.kT = kT
         self.J = J
         self.N = 4*L**2
         self.sL = int(np.sqrt(self.N)) # square length L 
-        self.stepwis = stepwise_reward
-        self.endreward = end_reward
-        self.terminate_mode = terminate_mode
-        self.obs_type = obs_type
+        self.num_mcsteps = num_mcsteps
+
+        # These parameters are called training conditions
+        self.defect_upper_thres = defect_upper_thres
+        self.defect_lower_thres = defect_lower_thres
+        self.dconfig_amp = dconfig_amp
+        self.local_eng_level = local_eng_level
+        self.stepwise_invfactor = stepwise_invfactor
+        # local_eng_level --> observation dimension depedent!
+
         num_neighbors = 1
         num_replicas = 1
-        num_mcsteps = 4000
-        self.num_mcsteps = num_mcsteps
         num_bins = 1
         num_thermalization = num_mcsteps
         tempering_period = 1
@@ -109,6 +129,10 @@ class IcegameEnv(core.Env):
         self.last_update_step = 0
         # why do we need to keep track last returned results?
         self.last_rets = None
+
+        # Subregion mechanism
+        self.use_subregion = False
+        self.center = None
 
         # Extend the action to 8+1 = 9 actions
         self.idx2act = dict({
@@ -129,7 +153,10 @@ class IcegameEnv(core.Env):
         self.global_observation_space = spaces.Box(low=-1, high=1.0,
             shape=(self.sL, self.sL, 1), dtype=np.float32)
         # local_observation_space (neighbor + agent + physical obs)
-        self.local_observation_space = spaces.Discrete(10)
+        if self.local_eng_level:
+            self.local_observation_space = spaces.Discrete(10)
+        else:
+            self.local_observation_space = spaces.Discrete(7)
         self.action_space = spaces.Discrete(len(self.idx2act))
         self.reward_range = (-1, 1)
 
@@ -147,7 +174,6 @@ class IcegameEnv(core.Env):
 
         """Choose Observation Function
         """
-
         self.cfg_outdir = "configs"
         # output file
         self.ofilename = "loop_sites.log"
@@ -157,10 +183,60 @@ class IcegameEnv(core.Env):
         self.json_file = "env_history.json"
         # Need more info writing down in env settings
         self.env_settinglog_file = "env_settings.json"
-
         self.stacked_axis = 2
-
         ## counts reset()
+        print ("[GAME_ENV] Environment of IcegameV3 is created.")
+
+    def set_training_condition(self,
+            defect_upper_thres=2, defect_lower_thres=10, dconfig_amp=5,
+            local_eng_level=True, stepwise_invfactor=100.0):
+        """Set and save training conds, without reset
+            * local_eng_level: if it is reset, change obs dim
+            should we check difference before assign?
+        """
+        self.defect_upper_thres = defect_upper_thres
+        self.defect_lower_thres = defect_lower_thres
+        self.dconfig_amp = dconfig_amp
+        self.local_eng_level = local_eng_level
+        self.stepwise_invfactor = stepwise_invfactor
+        if self.local_eng_level:
+            self.local_observation_space = spaces.Discrete(10)
+        else:
+            self.local_observation_space = spaces.Discrete(7)
+        print ("[GAME_ENV] Reset the training condition parameters")
+        # Note: this function would not auto-save,
+        # please call dump_env_setting() in application.
+        self.dump_env_setting()
+
+    def set_physical_condition(self,
+        L=16, kT=0.0001, J=1, num_mcsteps=4000, restart=True):
+        """Set phys conds and reset configm then save all.
+            this function is a much difficult one.
+            we should re-run and reset the configuration.
+        """
+        self.L = L
+        self.kT = kT
+        self.J = J
+        self.N = 4*L**2
+        self.sL = int(np.sqrt(self.N)) # square length L 
+        self.num_mcsteps = num_mcsteps
+        # TODO: We need to re-allocate reset sim the config
+        # set coupling
+        self.mc_info = INFO(self.L, self.N, 1, 1, \
+            1, self.num_mcsteps, 1, self.num_mcsteps)
+        self.sim = SQIceGame(self.mc_info)
+        print ("[GAME_ENV] Assign physical conditions and reset the configurations")
+        self.sim = SQIceGame(self.mc_info)
+        self.sim.set_temperature (self.kT)
+        self.sim.init_model()
+        self.sim.mc_run(num_mcsteps)
+        # can it works!?
+        # Note: this function would not auto-save,
+        # plesa call save_ice() and dump_env_setting() in application.
+        self.save_ice()
+        if restart:
+            self.start()
+        print ("[GAME_ENV] Reset the physical condition of Env.")
 
     def auto_step(self):
         # auto_step works as long loop algorithm.
@@ -211,7 +287,6 @@ class IcegameEnv(core.Env):
         if (metropolis_executed):
             """TODO: Add autocorr of config here.
             """
-
             if is_accept > 0 and dConfig > 0:
                 """ Updates Accepted
                     1. Calculate rewards
@@ -330,10 +405,8 @@ class IcegameEnv(core.Env):
             # TODO: calculate reward wrt physical observation
             _, diffeng_level, _ = self._discrete_criteron(self.physical_observables)
 
-            # asymmetric reward doest work well.
-            # 100 --> L*L --> N
-            reward = diffeng_level / (self.L * self.L)
-            #reward = diffeng_level / 100
+            # Note: asymmetric reward doest work well.
+            reward = diffeng_level / self.stepwise_invfactor
 
             # Reset if timeout from env.
             if (self.sim.timeout()):
@@ -368,8 +441,8 @@ class IcegameEnv(core.Env):
         assert(self.agent_site == init_agent_site)
         if create_defect:
             self.sim.flip()
-        # remove this legacy?
 
+        self.center = self.agent_site2d
         state = self.get_obs()
         # reference configuration
         #self.refconfig = transf_binary_vector(state.configs_2d[:,:,0])
@@ -393,17 +466,15 @@ class IcegameEnv(core.Env):
             This mechanism should be checked.
             Reset configuration: run monte carlo again.
         """
-        #print ("[GAME_ENV] Reset Ice Configuration!")
-        #self.sim.reset_config()
 
         info = None
         self.last_rets = None
         self.reward_trajectory = []
 
         state = self.get_obs()
+        self.center = self.agent_site2d
         # reference configuration
         # self.refconfig = transf_binary_vector(state.configs_2d[:,:,0])
-
         return state
 
     def timeout(self):
@@ -432,7 +503,6 @@ class IcegameEnv(core.Env):
             "total_steps": total_steps,
             "updated_times": update_times,
         }
-
         return AttrDict(d)
 
     def set_output_path(self, path):
@@ -465,6 +535,12 @@ class IcegameEnv(core.Env):
                 self.sim.restart(site)
             else:
                 self.sim.start(site)
+
+    def enable_subregion(self):
+        self.use_subregion = True
+
+    def disable_subregion(self):
+        self.use_subregion = Falase
 
     @property
     def action_name_mapping(self):
@@ -530,16 +606,19 @@ class IcegameEnv(core.Env):
         """Convert numpy array into python list, then set_ice"""
         if type(s) == np.ndarray:
             s = s.tolist()
-            self.sim.set_ice(s)
+            eng = self.sim.set_ice(s)
+            print ("[GAME_ENV] Set ice state from python , which with E = {}".format(eng))
         elif type(s) == list:
-            self.sim.set_ice(s)
+            eng = self.sim.set_ice(s)
+            print ("[GAME_ENV] Set ice state from python , which with E = {}".format(eng))
         else:
             raise ValueError("Only numpy array or list are accepted.")
 
     def load_ice(self, path):
         """Read out ice configuration from npy."""
         loaded = np.load(path)
-        self.set_ice(loaded)
+        eng = self.set_ice(loaded)
+        print ("[GAME_ENV] Load ice state from {}, which with E = {}".format(path, eng))
 
     def save_ice(self):
         """Save out the ice configuration in numpy format."""
@@ -552,7 +631,10 @@ class IcegameEnv(core.Env):
             ep, self.cfg_outdir))
 
     def reset_ice_config(self):
-        pass
+        """RunMC again (SSF), save init config and dump params."""
+        Et = self.sim.mc_run(self.num_mcsteps) # this func set config for us.
+        # check Etot as our expectation.
+        self.save_ice()
 
     # TODO: Option of Render on terminal or File.
     # TODO: Update this function to new apis
@@ -605,12 +687,24 @@ class IcegameEnv(core.Env):
         phyobs = self._transf1d(self.sim.get_phy_observables())
         disc_phyobs = self._discrete_criteron(phyobs)
 
-        # classify three energy cases
-
-        local_obs = np.concatenate((local_spins, disc_phyobs), axis=0) 
+        # local observation
+        if self.local_eng_level:
+            local_obs = np.concatenate((local_spins, disc_phyobs), axis=0) 
+        else:
+            local_obs = local_spins
 
         # global observation
         diff_map = self._transf2d(self.sim.get_state_diff_map())
+
+        """ Sub-region: sliding box observation. 
+            NOTE: ths sub-region size is now fixed.
+        """
+        if self.use_subregion:
+            new_center = move_center(self.center, self.agent_site2d, 32, 32, self.sL, self.sL)
+            diff_map= periodic_crop(diff_map, new_center, 32, 32)
+            if (diff_map.shape != (32, 32)):
+                raise ValueError("[GAME_ENV] EORROR: cropped region is ruined.")
+            self.center = new_center
         diff_map = np.expand_dims(diff_map, axis=2)
 
         # stack three maps
@@ -637,17 +731,6 @@ class IcegameEnv(core.Env):
                 gym.Env: The base non-wrapped gym.Env instance
         """
         return self
-
-    def save_env_settings(self):
-        print ("TODO: Change this into dump json")
-        print ("TODO, also Recover setting from file.")
-        # Write settings into the logfile, modified when setting function is called.
-        with open(self.env_settinglog_file, "a") as f:
-            # TODO: write new parameters.
-            f.write("Launch time: {}\n".format(str(datetime.now())))
-            f.write("Number of Observation: {}\n".format(NUM_OBSERVATION_MAPS))
-            #f.write("Stepwise reward function: {}\n".format(self.stepwise))
-            #f.write("Metropolis reward function: {}\n".format(self.endreward))
 
     def _transf2d(self, s):
         # add nan_to_num here?
@@ -681,29 +764,40 @@ class IcegameEnv(core.Env):
         E, dE, dC = phyobs
         # well, E and dE are correlated.
         num_defects = dE * self.N / 2
-        if (num_defects <= 2):
+        if (num_defects <= self.defect_upper_thres):
             num_defects = +1 
-        elif (num_defects <=5):
+        elif (num_defects <=self.defect_lower_thres):
             num_defects = 0
         else:
             num_defects = -1
 
         # hand-crafted value
-        dC *= 5.0
+        dC *= self.dconfig_amp
 
         newphy = [E, num_defects, dC]
         return newphy
 
     def env_setting(self):
+        """Get physical and traning conditions."""
         settings = {
             "N" : self.N,
             "sL" : self.sL,
             "L" : self.L,
-            "R_scale" : self.reward_scale,
-            "R_upper_thres" : self.reward_threshold,
-            "R_lower_thres" : self.reward_threshold,
+            "num_mcsteps" : self.num_mcsteps,
+            "stepwise_invfactor" : self.stepwise_invfactor,
+            "defect_upper_thres" : self.defect_upper_thres,
+            "defect_lower_thres" : self.defect_lower_thres,
+            "dconfig_amp" : self.dconfig_amp,
+            "local_eng_level" : self.local_eng_level,
         }
         return AttrDict(settings)
+
+    def resume_env_setting(self, path):
+        # TODO: Useful function, waited to be completed.
+        # path to the json file
+        env_settings = json.load(open(path))
+        print (env_settings)
+        # Recover by set_training_condition and set_physical_condition
 
     def env_status(self):
         """Save status into jsonfile.
@@ -750,9 +844,20 @@ class IcegameEnv(core.Env):
     def dump_env_status(self):
         d = self.env_status()
         self._append_record(d, self.json_file)
+        print ("[GAME_ENV] Dump env status to {}".format(self.json_file))
 
     def dump_env_setting(self):
         d = self.env_setting()
         with open(self.env_settinglog_file, "w") as f:
             json.dump(d, f)
+        print ("[GAME_ENV] Dump env setting to {}".format(self.env_settinglog_file))
 
+    def show_info(self):
+        print ("[GAME_ENV] Info ------------ ")
+        print ("Agent: {}, Center: {}".format(self.agent_site2d, self.center))
+        print ("Energy: {}, Vertex Density: {}".format(self.physical_observables[0],
+            self.sim.get_symmetric_vertex()))
+        print ("Env Settings:")
+        pprint (self.env_setting())
+        print ("Env Current Status:")
+        pprint (self.env_status())

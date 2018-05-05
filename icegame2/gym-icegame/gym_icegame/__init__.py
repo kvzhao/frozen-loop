@@ -4,16 +4,17 @@ logger = logging.getLogger(__name__)
 
 # Move to the new icegame2
 register (
-    id = "IcegameEnv-v0",
+    id = "IcegameEnv-v3",
     entry_point="gym_icegame.envs:IcegameEnv",
     # There would be more arguments
     kwargs={
         "L" : 16,
-        "kT" : 0.0001,
+        "kT" : 0.001,
         "J" : 1.0,
-        "stepwise_reward": "constant",
-        "end_reward": "loopsize",
-        "terminate_mode": "metro",
-        "obs_type" : "multi",
+        "defect_upper_thres" : 2,
+        "defect_lower_thres" : 10,
+        "dconfig_amp" : 5,
+        "local_eng_level" : True,
+        "stepwise_invfactor" : 100.0,
     },
-    )
+)
