@@ -16,7 +16,7 @@ from worker import cluster_spec
 from envs import create_icegame_env
 
 #TODO: remove dependencies of hparams
-from configs import hparams
+from params import HParams
 
 import logging
 logger = logging.getLogger(__name__)
@@ -140,7 +140,7 @@ class PolicyMonitor(object):
 
 def run_monitor(args, server):
     logger.info("Execute run monitor")
-    env = create_icegame_env(args.log_dir, args.env_id)
+    env = create_icegame_env(args.logdir, args.env_id)
     monitor = PolicyMonitor(env, args.policy, args.task)
 
     variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
@@ -158,7 +158,7 @@ def run_monitor(args, server):
         
     config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(args.task)])
 
-    logdir = os.path.join(args.log_dir, 'eval')
+    logdir = os.path.join(args.logdir, 'eval')
     summary_writer = tf.summary.FileWriter(logdir)
 
     monitor.set_writer(summary_writer)
@@ -195,6 +195,7 @@ def main(_):
     """
         Tensorflow for monitoring trained policy
     """
+    """
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument('-v', '--verbose', action='count', dest='verbosity', default=0, help='Set verbosity.')
     parser.add_argument('--task', default=0, type=int, help='Task index')
@@ -212,8 +213,8 @@ def main(_):
     # Add visualisation argument
     parser.add_argument('--visualise', action='store_true',
                         help="Visualise the gym environment by running env.render() between each timestep")
-
-    args = parser.parse_args()
+    """
+    args = HParams
 
     spec = cluster_spec(args.num_workers, 1)
     cluster = tf.train.ClusterSpec(spec).as_cluster_def()
