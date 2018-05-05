@@ -94,7 +94,7 @@ void Sample::set_magnetization(int a, double m){
 }
 
 void Sample::set_temperature(double t) {
-  std::cout << "set temperature (sample): " << t << "\n";
+  std::cout << "[Sample] set temperature : " << t << "\n";
   temperature = t;
 }
 
