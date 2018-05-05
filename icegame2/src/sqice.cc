@@ -143,7 +143,7 @@ void SQIceGame::ResetConfiguration() {
     Reset();
 }
 
-void SQIceGame::SetIce(const boost::python::object &iter) {
+double SQIceGame::SetIce(const boost::python::object &iter) {
     // (DANGER) Set the ice configuration from given python configuration.
     std::vector< double > dcfg = std::vector< double > (boost::python::stl_input_iterator< double > (iter),
                                                         boost::python::stl_input_iterator< double > ());
@@ -183,6 +183,7 @@ void SQIceGame::SetIce(const boost::python::object &iter) {
         //ice_config.Ising = backup;
         //restore_config_to_state();
     }
+    return energy_density;
 } 
 
 double SQIceGame::MCRun(int mcSteps) {

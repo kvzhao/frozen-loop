@@ -134,7 +134,7 @@ class SQIceGame {
         vector<int> GuideAction();
 
         // Read the configuration from python and set to ice_config
-        void SetIce(const boost::python::object &iter);
+        double SetIce(const boost::python::object &iter);
 
         // Metropolis action
         vector<double> Metropolis();
