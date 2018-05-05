@@ -128,7 +128,6 @@ class SQIceGame {
 
         // Use Move, instead of Draw
         vector<double> Move(int dir_dix);
-        vector<double> Draw(int dir_idx);
         vector<double> Flip();
 
         vector<int> GuideAction();
@@ -405,7 +404,6 @@ BOOST_PYTHON_MODULE(icegame)
         .def("clear_buffer", &SQIceGame::ClearBuffer)
 
         // REVISE, change the state
-        .def("draw", &SQIceGame::Draw)
         .def("move", &SQIceGame::Move)
         .def("flip", &SQIceGame::Flip)
         .def("guide_action", &SQIceGame::GuideAction)
