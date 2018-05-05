@@ -202,6 +202,11 @@ class Square_ice_F : public Square_ice {
     //~Square_ice_F();
     void MCstep_SSF(Sample*, Lattice*);
     bool SSF(Sample*, Lattice*);
+
+    // Update to square ice state
+    void MCstep_ICE(Sample*, Lattice*);
+    bool SSF_ICE(Sample*, Lattice*);
+
     double FE_diff(int, Sample*, Lattice*);
     static double FE(int, Sample*, Lattice*);
     void initialization(Sample*, Lattice*, int);

@@ -1470,10 +1470,37 @@ double Square_ice_F::FE_diff(int p, Sample* ss, Lattice* la){
     return (fe_after - fe_before);
 }
 
+void Square_ice_F::MCstep_ICE(Sample* ss, Lattice* la) {
+  double acceptance = 0;
+  for (int j = 0 ; j < N; j++){
+	  if ( SSF_ICE(ss, la) )
+	    acceptance++;
+      }
+  ss->acceptance_SSF = acceptance;
+}
+
+bool Square_ice_F::SSF_ICE(Sample* ss, Lattice* la){
+      int random = (uni01_sampler() * N);
+      double delta_se = (-2.0) * SE(random, ss, la);
+      double delta = delta_se;
+
+      double weight = exp(-delta / ss->get_temperature() );
+      double dice = uni01_sampler();
+      
+      if (dice < weight){
+        ss->Ising[random] *= -1;
+        ss->energy_update += delta;
+        // well, no need to update m
+        // ss->magnetization_update[0] += delta_m;
+	      return true;
+      }
+      else {
+        return false;
+      }
+}
+
 void Square_ice_F::MCstep_SSF(Sample* ss, Lattice* la){
-      
       double acceptance = 0;
-      
       for (int j = 0 ; j < N; j++){
 	  if ( SSF(ss, la) )
 	    acceptance++;
