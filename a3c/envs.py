@@ -12,7 +12,11 @@ def create_icegame_env(path, ID):
     """ Set environment parameters here.
       * Need args here. which implies shell commands enhancement.
     """
-    if ID in ["IcegameEnv-v3", "FModelEnv-v3"]:
+    if ID in ["IcegameEnv-v3", "FModelEnv-v3", 'f', 'sqice']:
+        if ID == 'f':
+            ID = "FModelEnv-v3"
+        elif ID == 'sqice':
+            ID = "IcegameEnv-v3"
         print ("Create Env {}".format(ID))
     else:
         print ("Env {} is not suitable for this project.".format(ID))
@@ -31,3 +35,4 @@ def create_icegame_env(path, ID):
     return env
 
 create_icegame_env("envLogs", "IcegameEnv-v3")
+create_icegame_env("envLogs", "FModelEnv-v3")

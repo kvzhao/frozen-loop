@@ -26,7 +26,15 @@ parser.add_argument("--num_tests", default=1000, type=int, help="Number of episo
 
 # TRAINING
 parser.add_argument('-p', '--policy', type=str, default='cnn', help='Choose policy network: simple, cnn')
-parser.add_argument('--num_steps', type=int, default=int(1e8), help='Number of global training steps.')
+parser.add_argument('--num_training_steps', type=int, default=int(1e8), help='Number of global training steps.')
+parser.add_argument('--local_steps', type=int, default=40, help='Local steps of updating the agent' )
+#parser.add_argument('--timestep_limit', type=int, default=1024, help='Time step limit for timing out' )
+parser.add_argument('--solver', type=str, default='rmsprop', help='Type of optimizer: rmsprop, adam')
+parser.add_argument('--learning_rate', type=float, default=1e-4)
+parser.add_argument('--momentum', type=float, default=0.0)
+parser.add_argument('--grad_clip', type=float, default=40.0)
+parser.add_argument('--gamma_factor', type=float, default=0.99, help='Discounted factor in MDP')
+parser.add_argument('--entropy_cost', type=float, default=0.01, help='Const of entropy loss')
 
 # Env
 parser.add_argument('--env_id', default="IcegameEnv-v3", help='Environment id')

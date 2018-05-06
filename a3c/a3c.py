@@ -14,7 +14,7 @@ from env_runner import RunnerThread, process_rollout
 from configs import hparams
 
 class A3C(object):
-    def __init__(self, env, policy, task, visualise):
+    def __init__(self, env, args):
         """
             An implementation of the A3C algorithm that is reasonably well-tuned for the VNC environments.
             Below, we will have a modest amount of complexity due to the way TensorFlow handles data parallelism.
@@ -25,8 +25,11 @@ class A3C(object):
         """
 
         self.env = env
-        self.policy = policy
-        self.task = task
+        hparams = self.hparams = args
+
+        self.policy = args.policy
+        self.task = args.task
+
         local_space = env.local_observation_space.n
         global_space = env.global_observation_space.shape
         action_space = env.action_space.n
@@ -34,22 +37,22 @@ class A3C(object):
         # environment information
 
         #TODO: How to use GPU?
-        worker_device = "/job:worker/task:{}/cpu:0".format(task)
+        worker_device = "/job:worker/task:{}/cpu:0".format(self.task)
         with tf.device(tf.train.replica_device_setter(1, worker_device=worker_device)):
             with tf.variable_scope("global"):
                 if self.policy == "simple":
-                    self.network = models.SimplePolicy(global_space, local_space, action_space)
+                    self.network = models.SimplePolicy(global_space, local_space, action_space, self.hparams)
                 elif self.policy == "cnn":
-                    self.network = models.CNNPolicy(global_space, local_space, action_space)
+                    self.network = models.CNNPolicy(global_space, local_space, action_space, self.hparams)
                 self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                 trainable=False)
 
         with tf.device(worker_device):
             with tf.variable_scope("local"):
                 if self.policy == "simple":
-                    self.local_net = pi = models.SimplePolicy(global_space, local_space, action_space)
+                    self.local_net = pi = models.SimplePolicy(global_space, local_space, action_space, self.hparams)
                 elif self.policy == "cnn":
-                    self.local_net = pi = models.CNNPolicy(global_space, local_space, action_space)
+                    self.local_net = pi = models.CNNPolicy(global_space, local_space, action_space, self.hparams)
                 pi.global_step = self.global_step
 
             self.ac = tf.placeholder(tf.float32, [None, env.action_space.n], name="ac")
@@ -71,8 +74,7 @@ class A3C(object):
 
             # batch size, this is not good
             bs = tf.to_float(tf.shape(pi.local_state)[0])
-            #bs = tf.to_float(tf.shape(pi.configs)[0])
-            self.loss = pi_loss + 0.5 * vf_loss - entropy * 0.01
+            self.loss = pi_loss + 0.5 * vf_loss - entropy * self.hparams.entropy_cost
 
             # 20 represents the number of "local steps":  the number of timesteps
             # we run the policy before we update the parameters.
@@ -80,7 +82,7 @@ class A3C(object):
             # on the one hand;  but on the other hand, we get less frequent parameter updates, which
             # slows down learning.  In this code, we found that making local steps be much
             # smaller than 20 makes the algorithm more difficult to tune and to get to work.
-            self.runner = RunnerThread(env, pi, hparams.local_steps, visualise)
+            self.runner = RunnerThread(env, pi, self.hparams)
 
             grads = tf.gradients(self.loss, pi.var_list)
 
@@ -104,7 +106,7 @@ class A3C(object):
             tf.summary.scalar("model/var_global_norm", tf.global_norm(pi.var_list))
             self.summary_op = tf.summary.merge_all()
 
-            grads, _ = tf.clip_by_global_norm(grads, hparams.grad_clip)
+            grads, _ = tf.clip_by_global_norm(grads, self.hparams.grad_clip)
 
             # copy weights from the parameter server to the local model
             self.sync = tf.group(*[v1.assign(v2) for v1, v2 in zip(pi.var_list, self.network.var_list)])
@@ -114,7 +116,14 @@ class A3C(object):
 
             #TODO: LR decay
             # each worker has a different set of adam optimizer parameters
-            opt = tf.train.AdamOptimizer(hparams.learing_rate)
+
+            if self.hparams.solver == "rmsprop":
+                # 0.00025, 0.99, 0.0, 1e-6
+                opt = tf.train.RMSPropOptimizer(self.hparams.learning_rate,
+                                                decay=0.99, momentum=self.hparams.momentum, epsilon=1e-6)
+            elif self.hparams.solver == "adam":
+                opt = tf.train.AdamOptimizer(self.hparams.learning_rate)
+
             self.train_op = tf.group(opt.apply_gradients(grads_and_vars), inc_step)
             self.summary_writer = None
             self.local_steps = 0
@@ -138,7 +147,7 @@ class A3C(object):
     def process(self, sess):
         """
             process grabs a rollout that's been produced by the thread runner,
-            and updates the parameters.  The update is then sent to the parameter server.
+            and updates the parameters. The update is then sent to the parameter server.
         """
 
         sess.run(self.sync)  # copy weights from shared to local

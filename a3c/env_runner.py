@@ -10,6 +10,7 @@ import scipy
 use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
 
 from configs import hparams
+from params import HParams
 
 """ISSUES
     * LSTM policy and forward policy
@@ -93,17 +94,19 @@ class RunnerThread(threading.Thread):
         that would constantly interact with the environment and tell it what to do.  This thread is here.
     """
 
-    def __init__(self, env, policy, num_local_steps, visualise):
+    def __init__(self, env, policy, hparams):
         threading.Thread.__init__(self)
         self.queue = queue.Queue(5)
-        self.num_local_steps = num_local_steps
+        self.hparams = hparams
+        self.num_local_steps = hparams.local_steps
+
         self.env = env
         #self.last_features = None
         self.policy = policy
+
         self.daemon = True
         self.sess = None
         self.summary_writer = None
-        self.visualise = visualise
 
     def start_runner(self, sess, summary_writer):
         self.sess = sess
@@ -116,14 +119,14 @@ class RunnerThread(threading.Thread):
             self._run()
 
     def _run(self):
-        rollout_provider = env_runner(self.env, self.policy, self.num_local_steps, self.summary_writer, self.visualise)
+        rollout_provider = env_runner(self.env, self.policy, self.num_local_steps, self.summary_writer)
         while True:
             # the timeout variable exists because apparently, if one worker dies, the other workers
             # won't die with it, unless the timeout is set to some large number.  This is an empirical
             # observation.
             self.queue.put(next(rollout_provider), timeout=600.0)
 
-def env_runner(env, policy, num_local_steps, summary_writer, render):
+def env_runner(env, policy, num_local_steps, summary_writer):
     """
         The logic of the thread runner.  In brief, it constantly keeps on running
         the policy, and as long as the rollout exceeds a certain length, the thread
@@ -151,8 +154,6 @@ def env_runner(env, policy, num_local_steps, summary_writer, render):
 
             # TODO: eps-greedy method
             state, reward, terminal, info = env.step(action.argmax())
-            if render:
-                env.render()
 
             # collect the experience
             ls = last_state.local_obs
@@ -174,6 +175,7 @@ def env_runner(env, policy, num_local_steps, summary_writer, render):
                 summary_writer.flush()
 
             """Avoid so ugly hard-coded timeout
+                * Better timeout mechanism
             """
             timestep_limit = 1024
             if terminal or length >= timestep_limit:

@@ -34,12 +34,13 @@ class PolicyMonitor(object):
 
         add policy selections.
     """
-    def __init__(self, env, policy, task):
+    def __init__(self, env, policy, task, hparams):
 
         #self.video_dir = os.path.join(summary_writer.get_logdir(), "../videos")
         #self.video_dir = os.path.abspath(args.video_dir)
 
         self.env = env
+        self.hparams = hparams
         self.policy = policy
         self.task = task
         self.summary_writer = None 
@@ -65,17 +66,17 @@ class PolicyMonitor(object):
                 """TODO: Add option for policy selection
                 """
                 if self.policy == "simple":
-                    self.network = models.SimplePolicy(global_space, local_space, action_space)
+                    self.network = models.SimplePolicy(global_space, local_space, action_space, self.hparams)
                 elif self.policy == "cnn":
-                    self.network = models.CNNPolicy(global_space, local_space, action_space)
+                    self.network = models.CNNPolicy(global_space, local_space, action_space, self.hparams)
                 self.global_step = tf.get_variable("global_step", [], tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32),
                                                 trainable=False)
         with tf.device(worker_device):
             with tf.variable_scope("local"):
                 if self.policy == "simple":
-                    self.pi = models.SimplePolicy(global_space, local_space, action_space)
+                    self.pi = models.SimplePolicy(global_space, local_space, action_space, self.hparams)
                 elif self.policy == "cnn":
-                    self.pi = models.CNNPolicy(global_space, local_space, action_space)
+                    self.pi = models.CNNPolicy(global_space, local_space, action_space, self.hparams)
                 self.pi.global_step = self.global_step
 
         # copy weights from the parameter server to the local model
@@ -141,7 +142,7 @@ class PolicyMonitor(object):
 def run_monitor(args, server):
     logger.info("Execute run monitor")
     env = create_icegame_env(args.logdir, args.env_id)
-    monitor = PolicyMonitor(env, args.policy, args.task)
+    monitor = PolicyMonitor(env, args.policy, args.task, args)
 
     variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]
     init_op = tf.variables_initializer(variables_to_save)
@@ -195,25 +196,7 @@ def main(_):
     """
         Tensorflow for monitoring trained policy
     """
-    """
-    parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('-v', '--verbose', action='count', dest='verbosity', default=0, help='Set verbosity.')
-    parser.add_argument('--task', default=0, type=int, help='Task index')
-    parser.add_argument('--policy', type=str, default='simple', help='choose policy net')
-    parser.add_argument('--job-name', default="monitor", help='worker or ps')
-    parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
-    parser.add_argument('--log-dir', default="/tmp/icegame_v2", help='Log directory path')
-    parser.add_argument('--video-dir', default=None, help='Path to save video')
-    parser.add_argument('--env-id', default="IceGameEnv-v2", help='Environment id')
-    parser.add_argument('-r', '--remotes', default=None,
-                        help='References to environments to create (e.g. -r 20), '
-                            'or the address of pre-existing VNC servers and '
-                            'rewarders to use (e.g. -r vnc://localhost:5900+15900,vnc://localhost:5901+15901)')
 
-    # Add visualisation argument
-    parser.add_argument('--visualise', action='store_true',
-                        help="Visualise the gym environment by running env.render() between each timestep")
-    """
     args = HParams
 
     spec = cluster_spec(args.num_workers, 1)

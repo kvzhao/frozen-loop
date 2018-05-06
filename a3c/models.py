@@ -23,12 +23,15 @@ def nipsHead(x):
 """How make program switch policy easily?
 """
 
+# Can we use RNN as the local info processor?
+
 class SimplePolicy(object):
     """Simple single hidden layer forward network as the policy.
     """
-    def __init__(self, global_space, local_space, ac_space):
+    def __init__(self, global_space, local_space, ac_space, hparams):
         # local & global place holder
         print ('Use simple policy network')
+        self.hparams = hparams
         self.ac_space = ac_space
         self.local_state = tf.placeholder(tf.float32, [None, local_space])
         # dummy placeholder
@@ -60,9 +63,10 @@ class SimplePolicy(object):
 class CNNPolicy(object):
     """CNN Policy with two channels
     """
-    def __init__(self, global_space, local_space, ac_space):
+    def __init__(self, global_space, local_space, ac_space, hparams):
         # local & global place holder
         print ("Use two channels CNN policy")
+        self.hparams = hparams
         self.ac_space = ac_space
         self.global_state = tf.placeholder(tf.float32, [None] + list(global_space))
         self.local_state = tf.placeholder(tf.float32, [None, local_space])
