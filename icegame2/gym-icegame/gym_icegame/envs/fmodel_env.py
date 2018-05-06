@@ -158,6 +158,7 @@ class FModelGameEnv(core.Env):
         self.reward_scale = 1.0
         self.reward_threshold = 0.0
         self.reward_trajectory = []
+        self.prev_energy_record = -1.0
 
         """Choose Observation Function
         """
@@ -317,6 +318,8 @@ class FModelGameEnv(core.Env):
                 #reward = (1.0 - acorr) * self.reward_scale
                 reward = 20.0 * abs(Energy - self.ground)
 
+                self.prev_energy_record = Energy
+
                 # TODO: Calculate recent # steps' acceptance rate
                 """Dump resutls into file.
                     TODO: Different counter
@@ -381,7 +384,7 @@ class FModelGameEnv(core.Env):
                 """
 
                 self.sim.clear_buffer()
-                reward = 0.0
+                reward = -0.01
                 terminate = True
             # reset or update
         else:
@@ -455,6 +458,7 @@ class FModelGameEnv(core.Env):
         if self.config_used_counter >= self.config_refresh_steps:
             self.config_used_counter = 0
             eng = self.reset_ice_config()
+            self.prev_energy_record = -1.0
             print ("Reset the ice state config with <E> = {}".format(eng))
 
         if from_ice:
