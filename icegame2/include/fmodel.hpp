@@ -441,7 +441,6 @@ BOOST_PYTHON_MODULE(fmodelgame)
         .def("get_local_spins", &FmodelGame::GetLocalSpins)
         .def("get_local_sites", &FmodelGame::GetLocalSites)
 
-
         // Game information
         .def("show_info", &FmodelGame::ShowInfo)
         .def("get_total_steps", &FmodelGame::GetTotalSteps)
