@@ -28,7 +28,8 @@ register (
     kwargs={
         "L" : 16,
         "kT" : 0.01,
-        "J" : 1.0,
+        "J1" : 1.0,
+        "J2" : -0.05,
         "defect_upper_thres" : 4,
         "defect_lower_thres" : 20,
         "dconfig_amp" : 5,

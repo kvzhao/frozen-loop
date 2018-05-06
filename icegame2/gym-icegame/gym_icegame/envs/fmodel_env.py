@@ -829,6 +829,8 @@ class FModelGameEnv(core.Env):
         # configuration changes == loop length
         effort = loop_length / ep_step_counters * 100.0
 
+        energy = self.physical_observables()[0]
+
         d = {
             "Episode": ep,
             "Steps"  : total_steps,
@@ -839,7 +841,8 @@ class FModelGameEnv(core.Env):
             "AcceptanceRatio" : acceptance,
             "LoopLength": loop_length,
             "EnclosedArea": enclosed_area,
-            "ActionStats" : action_stats
+            "ActionStats" : action_stats,
+            "Energy" : energy,
         }
         return AttrDict(d)
 
