@@ -16,6 +16,7 @@ register (
         "dconfig_amp" : 5,
         "local_eng_level" : True,
         "stepwise_invfactor" : 1000.0,
+        "config_refresh_steps" : 100000,
     },
 )
 
@@ -33,5 +34,6 @@ register (
         "dconfig_amp" : 5,
         "local_eng_level" : True,
         "stepwise_invfactor" : 1000.0,
+        "config_refresh_steps" : 100000,
     },
 )

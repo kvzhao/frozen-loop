@@ -53,6 +53,7 @@ class FModelGameEnv(core.Env):
                     dconfig_amp = 5,
                     local_eng_level = True,
                     stepwise_invfactor = 100.0,
+                    config_refresh_steps = 100000,
                 ):
         """FModelGame
             *** Considering more action and state spaces. Use autocorr as reward. ***
@@ -107,6 +108,8 @@ class FModelGameEnv(core.Env):
         self.accepted_episode = False
 
         self.last_update_step = 0
+        self.config_refresh_steps = config_refresh_steps
+        self.config_used_counter = 0
         # why do we need to keep track last returned results?
         self.last_rets = None
 
@@ -432,7 +435,7 @@ class FModelGameEnv(core.Env):
 
         return state
 
-    def reset(self, site=None, create_defect=True, from_ice=True):
+    def reset(self, site=None, create_defect=True, from_ice=False):
         """reset is called by RL convention.
         """
         ## clear buffer and set new start of agent
@@ -442,8 +445,15 @@ class FModelGameEnv(core.Env):
         assert(init_site == site)
         # actually, counter can be called by sim.get_episode()
 
+        self.config_used_counter += 1
+        if self.config_used_counter >= self.config_refresh_steps:
+            self.config_used_counter = 0
+            eng = self.reset_ice_config()
+            print ("Reset the ice state config with <E> = {}".format(eng))
+
         if from_ice:
-          self.sim.mc_run(self.num_mcsteps)
+            # reset to ice state every time.
+            self.sim.mc_run(self.num_mcsteps)
 
         if create_defect:
             self.sim.flip()
@@ -621,6 +631,7 @@ class FModelGameEnv(core.Env):
         Et = self.sim.mc_run(self.num_mcsteps) # this func set config for us.
         # check Etot as our expectation.
         self.save_ice()
+        return Et
 
     # TODO: Option of Render on terminal or File.
     # TODO: Update this function to new apis
@@ -775,6 +786,7 @@ class FModelGameEnv(core.Env):
             "defect_lower_thres" : self.defect_lower_thres,
             "dconfig_amp" : self.dconfig_amp,
             "local_eng_level" : self.local_eng_level,
+            "config_refresh_steps" : self.config_refresh_steps,
         }
         return AttrDict(settings)
 
