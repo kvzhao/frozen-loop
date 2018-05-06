@@ -49,7 +49,7 @@ class FModelGameEnv(core.Env):
     def __init__ (self, L, kT, 
                     J1=1.0,
                     J2=-0.05, 
-                    num_mcsteps = 2000,
+                    num_mcsteps = 3000,
                     defect_upper_thres=2,
                     defect_lower_thres=10,
                     dconfig_amp = 5,
@@ -277,7 +277,7 @@ class FModelGameEnv(core.Env):
         if (metropolis_executed):
             """TODO: Add autocorr of config here.
             """
-            if is_accept > 0 and dConfig > 0:
+            if is_accept > 0 and dConfig > 0 and Energy <= -1.0:
                 """ Updates Accepted
                     1. Calculate rewards
                       1.1 Get current configuration before updating
