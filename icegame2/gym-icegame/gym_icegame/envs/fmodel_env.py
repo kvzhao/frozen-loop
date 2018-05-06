@@ -347,6 +347,7 @@ class FModelGameEnv(core.Env):
                     "Updated" : updated_times,
                     "Loop Size": loop_length,
                     "Loop Area": loop_area,
+                    "Energy" : Energy,
                 }
 
                 # Render when special case happened.
