@@ -36,6 +36,7 @@ parser.add_argument('--momentum', type=float, default=0.0)
 parser.add_argument('--grad_clip', type=float, default=40.0)
 parser.add_argument('--gamma_factor', type=float, default=0.99, help='Discounted factor in MDP')
 parser.add_argument('--entropy_cost', type=float, default=0.01, help='Const of entropy loss')
+parser.add_argument('--exploration', type=float, default=0.01, help='Exploration probability (not yet sched)')
 
 # Env
 parser.add_argument('--env_id', default="IcegameEnv-v3", help='Environment id')

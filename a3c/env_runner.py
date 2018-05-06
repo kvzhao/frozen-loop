@@ -99,6 +99,7 @@ class RunnerThread(threading.Thread):
         self.queue = queue.Queue(5)
         self.hparams = hparams
         self.num_local_steps = hparams.local_steps
+        self.exploration = hparams.exploration
 
         self.env = env
         #self.last_features = None
@@ -119,14 +120,15 @@ class RunnerThread(threading.Thread):
             self._run()
 
     def _run(self):
-        rollout_provider = env_runner(self.env, self.policy, self.num_local_steps, self.summary_writer)
+        rollout_provider = env_runner(self.env, self.policy,
+            self.exploration, self.num_local_steps, self.summary_writer)
         while True:
             # the timeout variable exists because apparently, if one worker dies, the other workers
             # won't die with it, unless the timeout is set to some large number.  This is an empirical
             # observation.
             self.queue.put(next(rollout_provider), timeout=600.0)
 
-def env_runner(env, policy, num_local_steps, summary_writer):
+def env_runner(env, policy, exploration, num_local_steps, summary_writer):
     """
         The logic of the thread runner.  In brief, it constantly keeps on running
         the policy, and as long as the rollout exceeds a certain length, the thread
@@ -142,23 +144,27 @@ def env_runner(env, policy, num_local_steps, summary_writer):
         rollout = PartialRollout()
 
         for _ in range(num_local_steps):
-            fetched = policy.act(last_state)
-            action, value_ = fetched[0], fetched[1]
-            # for lstm policy
-            #fetched = policy.act(last_state, *last_features)
-            #action, value_, features = fetched[0], fetched[1], fetched[2:]
-            # argmax to convert from one-hot
 
-            #print ("action: {}".format(action))
-            #print ("value _: {}".format(value_))
+            fetched = policy.act_inference(last_state)
+            action_probs, action, value_ = fetched[0], fetched[1], fetched[2]
 
-            # TODO: eps-greedy method
-            state, reward, terminal, info = env.step(action.argmax())
+            # Exploration: 
+            # TODO: tricky a6 exploration.
+
+            if (np.random.rand() < exploration):
+                action = np.random.choice(np.arange(len(action_probs)))
+            else:
+                action = action.argmax()
+                #action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
+
+            state, reward, terminal, info = env.step(action)
+            action_sample = np.zeros(len(action_probs))
+            action_sample[action]=1
 
             # collect the experience
             ls = last_state.local_obs
             gs = last_state.global_obs
-            rollout.add(gs, ls, action, reward, value_, terminal)
+            rollout.add(gs, ls, action_sample, reward, value_, terminal)
             #rollout.add(last_state, action, reward, value_, terminal, last_features)
             length += 1
             rewards += reward
