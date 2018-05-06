@@ -185,8 +185,7 @@ def run_monitor(args, server):
 
         while not sv.should_stop():
             monitor.eval(sess)
-            time.sleep(60)
-            #time.sleep(hparams.eval_secs)
+            time.sleep(args.monitor_eval_secs)
 
     # Ask for all the services to stop.
     sv.stop()
