@@ -1,4 +1,5 @@
 import os, sys
+import json
 from params import HParams
 from six.moves import shlex_quote
 
@@ -66,7 +67,21 @@ def create_commands(session, args):
 def run():
   args = HParams
 
+  # Save parameters in the folder as the backup.
+
+  if not os.path.exists(args.logdir):
+    os.makedirs(args.logdir)
+
+  dparams={}
+  for arg in vars(args):
+    val = getattr(args, arg)
+    dparams[arg] = val
+  with open("/".join([args.logdir, "hparams.json"]), "w") as f:
+    print ("Save the hyper-parameters.")
+    json.dump(dparams, f)
+
   cmds, notes = create_commands('a3c', args)
+
   if args.dry_run:
     print("Dry-run mode due to -n flag, otherwise the following commands would be executed:")
   else:
