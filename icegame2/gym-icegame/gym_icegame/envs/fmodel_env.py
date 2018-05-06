@@ -395,10 +395,10 @@ class FModelGameEnv(core.Env):
             # Check each scale (each of them stays in 0~1)
 
             # TODO: calculate reward wrt physical observation
-            _, diffeng_level, _ = self._discrete_criteron(self.physical_observables)
-
+            #E, diffeng_level, dC = self._discrete_criteron(self.physical_observables)
+            E, dE, dC = self.physical_observables
             # Note: asymmetric reward doest work well.
-            reward = diffeng_level / self.stepwise_invfactor
+            reward = -dE * self.dconfig_amp
 
             # Reset if timeout from env.
             if (self.sim.timeout()):
