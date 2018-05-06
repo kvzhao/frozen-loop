@@ -23,7 +23,7 @@ parser.add_argument('-o', '--outdir', default="/tmp/Icegame_v3/results", help='o
 # TESTING
 parser.add_argument("--render", action="store_true", help="Set true to rendering")
 parser.add_argument("--num_tests", default=1000, type=int, help="Number of episodes to run.")
-parser.add_argument("--monitor_eval_secs", type=int, default=20, "Time interval of monitor evaluations.")
+parser.add_argument("--monitor_eval_secs", type=int, default=20, help="Time interval of monitor evaluations.")
 
 # TRAINING
 parser.add_argument('-p', '--policy', type=str, default='cnn', help='Choose policy network: simple, cnn')
