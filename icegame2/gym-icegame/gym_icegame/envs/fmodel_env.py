@@ -279,7 +279,7 @@ class FModelGameEnv(core.Env):
         if (metropolis_executed):
             """TODO: Add autocorr of config here.
             """
-            if is_accept > 0 and dConfig > 0 and Energy <= -1.0:
+            if is_accept > 0 and dConfig > 0 and Energy <= self.prev_energy_record:
                 """ Updates Accepted
                     1. Calculate rewards
                       1.1 Get current configuration before updating
