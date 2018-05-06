@@ -85,6 +85,7 @@ class FModelGameEnv(core.Env):
         self.N = 4*L**2
         self.sL = int(np.sqrt(self.N)) # square length L 
         self.num_mcsteps = num_mcsteps
+        self.ground = -(J1 - J2) # -1.05
 
         # These parameters are called training conditions
         self.defect_upper_thres = defect_upper_thres
@@ -314,7 +315,7 @@ class FModelGameEnv(core.Env):
                 # calculate the metropolis reward
                 #acorr = autocorr(statevec, self.refconfig)
                 #reward = (1.0 - acorr) * self.reward_scale
-                reward = abs(Energy)
+                reward = 20.0 * abs(Energy - self.ground)
 
                 # TODO: Calculate recent # steps' acceptance rate
                 """Dump resutls into file.
