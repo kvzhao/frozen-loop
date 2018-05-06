@@ -829,7 +829,7 @@ class FModelGameEnv(core.Env):
         # configuration changes == loop length
         effort = loop_length / ep_step_counters * 100.0
 
-        energy = self.physical_observables()[0]
+        energy = self.physical_observables[0]
 
         d = {
             "Episode": ep,
