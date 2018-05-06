@@ -27,7 +27,7 @@ register (
     # There would be more arguments
     kwargs={
         "L" : 16,
-        "kT" : 0.01,
+        "kT" : 0.001,
         "J1" : 1.0,
         "J2" : -0.05,
         "defect_upper_thres" : 4,
