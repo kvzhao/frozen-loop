@@ -46,7 +46,9 @@ class AttrDict(dict):
     self.__dict__ = self
 
 class FModelGameEnv(core.Env):
-    def __init__ (self, L, kT, J, 
+    def __init__ (self, L, kT, 
+                    J1=1.0,
+                    J2=-0.05, 
                     num_mcsteps = 2000,
                     defect_upper_thres=2,
                     defect_lower_thres=10,
@@ -78,7 +80,8 @@ class FModelGameEnv(core.Env):
         # These parameters are called physical conditions
         self.L = L
         self.kT = kT
-        self.J = J
+        self.J1 = J1
+        self.J2 = J2
         self.N = 4*L**2
         self.sL = int(np.sqrt(self.N)) # square length L 
         self.num_mcsteps = num_mcsteps
@@ -192,14 +195,15 @@ class FModelGameEnv(core.Env):
         self.dump_env_setting()
 
     def set_physical_condition(self,
-        L=16, kT=0.0001, J=1, num_mcsteps=4000, restart=True):
+        L=16, kT=0.0001, J1=1, J2=-0.05, num_mcsteps=4000, restart=True):
         """Set phys conds and reset configm then save all.
             this function is a much difficult one.
             we should re-run and reset the configuration.
         """
         self.L = L
         self.kT = kT
-        self.J = J
+        self.J1 = J1
+        self.J2 = J2
         self.N = 4*L**2
         self.sL = int(np.sqrt(self.N)) # square length L 
         self.num_mcsteps = num_mcsteps
