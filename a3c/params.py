@@ -40,9 +40,14 @@ parser.add_argument('--exploration', type=float, default=0.01, help='Exploration
 
 # Env
 parser.add_argument('--env_id', default="IcegameEnv-v3", help='Environment id')
+# -- traning condition
 parser.add_argument('--num_mcsteps', default=4000, type=int, help='Number of MC steps for SSF update')
-parser.add_argument('--defect_upper_thres', default=5, type=int, help='Used in discrte_criterion() for setting thresholds')
+parser.add_argument('--defect_upper_thres', default=4, type=int, help='Used in discrte_criterion() for setting thresholds')
 parser.add_argument('--defect_lower_thres', default=20, type=int, help='Used in discrte_criterion() for setting thresholds')
+parser.add_argument('--dconfig_amp', default=5, type=float)
+parser.add_argument('--stepwise_invfactor', default=100.0, type=float)
+parser.add_argument('--config_refresh_steps', default=100000, type=int)
+#parser.add_argument('--disable_local', action='store_false', default=True)
 
 # Hyper-parameter
 

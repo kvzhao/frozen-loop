@@ -141,7 +141,7 @@ class PolicyMonitor(object):
 
 def run_monitor(args, server):
     logger.info("Execute run monitor")
-    env = create_icegame_env(args.logdir, args.env_id)
+    env = create_icegame_env(args.logdir, args.env_id, args)
     monitor = PolicyMonitor(env, args.policy, args.task, args)
 
     variables_to_save = [v for v in tf.global_variables() if not v.name.startswith("local")]

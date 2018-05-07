@@ -27,7 +27,7 @@ class FastSaver(tf.train.Saver):
 
 # run & monitor?
 def run(args, server):
-    env = create_icegame_env(args.logdir, args.env_id)
+    env = create_icegame_env(args.logdir, args.env_id, args)
     trainer = A3C(env, args)
 
     # Variable names that start with "local" are not saved in checkpoints.

@@ -8,7 +8,7 @@ import numpy as np
 #TODO: dangerous relative path
 sys.path.append("../icegame2/build/src/")
 
-def create_icegame_env(path, ID):
+def create_icegame_env(path, ID, hparams):
     """ Set environment parameters here.
       * Need args here. which implies shell commands enhancement.
     """
@@ -27,6 +27,14 @@ def create_icegame_env(path, ID):
 
     # set the environments
     # Note: Directly include params? or passing into from main?
+    env.set_training_condition(
+        defect_upper_thres=hparams.defect_upper_thres,
+        defect_lower_thres=hparams.defect_lower_thres,
+        dconfig_amp=hparams.dconfig_amp,
+        #local_eng_level=hparams.disable_local,
+        stepwise_invfactor=hparams.stepwise_invfactor,
+        config_refresh_steps=hparams.config_refresh_steps,
+    )
 
     # save the settings
     env.dump_env_setting()
@@ -34,5 +42,5 @@ def create_icegame_env(path, ID):
     env.save_ice()
     return env
 
-create_icegame_env("envLogs", "IcegameEnv-v3")
-create_icegame_env("envLogs", "FModelEnv-v3")
+#create_icegame_env("envLogs", "IcegameEnv-v3")
+#create_icegame_env("envLogs", "FModelEnv-v3")

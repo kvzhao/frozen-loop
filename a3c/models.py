@@ -19,7 +19,6 @@ def nipsHead(x):
     x = tf.nn.relu(linear(x, hparams.cell_size, "fc", normalized_columns_initializer(0.01)))
     return x
 
-
 """How make program switch policy easily?
 """
 
