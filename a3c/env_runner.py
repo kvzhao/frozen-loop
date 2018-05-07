@@ -100,6 +100,7 @@ class RunnerThread(threading.Thread):
         self.hparams = hparams
         self.num_local_steps = hparams.local_steps
         self.exploration = hparams.exploration
+        self.strategy = hparams.strategy
 
         self.env = env
         #self.last_features = None
@@ -121,14 +122,15 @@ class RunnerThread(threading.Thread):
 
     def _run(self):
         rollout_provider = env_runner(self.env, self.policy,
-            self.exploration, self.num_local_steps, self.summary_writer)
+                                self.exploration, self.strategy, 
+                                self.num_local_steps, self.summary_writer)
         while True:
             # the timeout variable exists because apparently, if one worker dies, the other workers
             # won't die with it, unless the timeout is set to some large number.  This is an empirical
             # observation.
             self.queue.put(next(rollout_provider), timeout=600.0)
 
-def env_runner(env, policy, exploration, num_local_steps, summary_writer):
+def env_runner(env, policy, exploration, strategy, num_local_steps, summary_writer):
     """
         The logic of the thread runner.  In brief, it constantly keeps on running
         the policy, and as long as the rollout exceeds a certain length, the thread
@@ -151,10 +153,16 @@ def env_runner(env, policy, exploration, num_local_steps, summary_writer):
             # Exploration: 
             # TODO: tricky a6 exploration.
 
-            if (np.random.rand() < exploration):
-                action = np.random.choice(np.arange(len(action_probs)))
-            else:
-                action = action.argmax()
+            if strategy == 'egreedy':
+                if (np.random.rand() < exploration):
+                    action = np.random.choice(np.arange(len(action_probs)))
+                else:
+                    action = action.argmax()
+            elif strategy == 'ea6':
+                if (np.random.rand() < exploration):
+                    action = 6
+                else:
+                    action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
                 #action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
 
             state, reward, terminal, info = env.step(action)

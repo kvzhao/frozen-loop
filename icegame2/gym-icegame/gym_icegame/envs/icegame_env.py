@@ -73,6 +73,7 @@ class IcegameEnv(core.Env):
                     dconfig_amp = 5,
                     local_eng_level = True,
                     stepwise_invfactor = 100.0,
+                    failure_reward = 0.0,
                     config_refresh_steps = 100000,
                 ):
         """IceGame
@@ -172,6 +173,7 @@ class IcegameEnv(core.Env):
 
         # TODO: Scheduling reward scale
         self.reward_scale = 1.0
+        self.failure_reward = failure_reward
         self.reward_threshold = 0.0
         self.reward_trajectory = []
 
@@ -191,7 +193,7 @@ class IcegameEnv(core.Env):
         print ("[GAME_ENV] Environment of IcegameV3 is created.")
 
     def set_training_condition(self,
-            defect_upper_thres=2, defect_lower_thres=10, dconfig_amp=5,
+            defect_upper_thres=2, defect_lower_thres=10, dconfig_amp=5, failure_reward=0.0,
             local_eng_level=True, stepwise_invfactor=100.0, config_refresh_steps=10000):
         """Set and save training conds, without reset
             * local_eng_level: if it is reset, change obs dim
@@ -201,6 +203,7 @@ class IcegameEnv(core.Env):
         self.defect_lower_thres = defect_lower_thres
         self.dconfig_amp = dconfig_amp
         self.local_eng_level = local_eng_level
+        self.failure_reward = failure_reward
         self.stepwise_invfactor = stepwise_invfactor
         if self.local_eng_level:
             self.local_observation_space = spaces.Discrete(10)
@@ -393,7 +396,7 @@ class IcegameEnv(core.Env):
                 """
 
                 self.sim.clear_buffer()
-                reward = 0.0
+                reward = self.failure_reward
                 terminate = True
             # reset or update
         else:

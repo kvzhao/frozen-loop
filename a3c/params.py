@@ -37,6 +37,8 @@ parser.add_argument('--grad_clip', type=float, default=40.0)
 parser.add_argument('--gamma_factor', type=float, default=0.99, help='Discounted factor in MDP')
 parser.add_argument('--entropy_cost', type=float, default=0.01, help='Const of entropy loss')
 parser.add_argument('--exploration', type=float, default=0.01, help='Exploration probability (not yet sched)')
+parser.add_argument('--failure_reward', type=float, default=-0.01, help='Punishment when update failure')
+parser.add_argument('--strategy', type=str, default="egreedy", help='Option: egreedy, ea6')
 
 # Env
 parser.add_argument('--env_id', default="IcegameEnv-v3", help='Environment id')
@@ -48,8 +50,6 @@ parser.add_argument('--dconfig_amp', default=5, type=float)
 parser.add_argument('--stepwise_invfactor', default=100.0, type=float)
 parser.add_argument('--config_refresh_steps', default=100000, type=int)
 #parser.add_argument('--disable_local', action='store_false', default=True)
-
-# Hyper-parameter
 
 # usage: from params import args
 HParams = parser.parse_args()
