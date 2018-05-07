@@ -279,7 +279,7 @@ class FModelGameEnv(core.Env):
         if (metropolis_executed):
             """TODO: Add autocorr of config here.
             """
-            if is_accept > 0 and dConfig > 0 and Energy <= self.prev_energy_record:
+            if is_accept > 0 and dConfig > 0 and Energy <= -1.0:
                 """ Updates Accepted
                     1. Calculate rewards
                       1.1 Get current configuration before updating
@@ -316,7 +316,10 @@ class FModelGameEnv(core.Env):
                 # calculate the metropolis reward
                 #acorr = autocorr(statevec, self.refconfig)
                 #reward = (1.0 - acorr) * self.reward_scale
-                reward = 20.0 * abs(Energy - self.ground)
+                if Energy <= self.prev_energy_record:
+                    reward = 100.0 * abs(Energy - self.ground)
+                else:
+                    reward = 20.0 * abs(Energy - self.ground)
 
                 self.prev_energy_record = Energy
 
