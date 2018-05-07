@@ -74,6 +74,7 @@ class IcegameEnv(core.Env):
                     local_eng_level = True,
                     stepwise_invfactor = 100.0,
                     failure_reward = 0.0,
+                    accept_reward = 1.0,
                     config_refresh_steps = 100000,
                 ):
         """IceGame
@@ -193,7 +194,7 @@ class IcegameEnv(core.Env):
         print ("[GAME_ENV] Environment of IcegameV3 is created.")
 
     def set_training_condition(self,
-            defect_upper_thres=2, defect_lower_thres=10, dconfig_amp=5, failure_reward=0.0,
+            defect_upper_thres=2, defect_lower_thres=10, dconfig_amp=5, failure_reward=0.0, accept_reward=1.0,
             local_eng_level=True, stepwise_invfactor=100.0, config_refresh_steps=10000):
         """Set and save training conds, without reset
             * local_eng_level: if it is reset, change obs dim
@@ -204,6 +205,7 @@ class IcegameEnv(core.Env):
         self.dconfig_amp = dconfig_amp
         self.local_eng_level = local_eng_level
         self.failure_reward = failure_reward
+        self.accept_reward = accept_reward
         self.stepwise_invfactor = stepwise_invfactor
         if self.local_eng_level:
             self.local_observation_space = spaces.Discrete(10)
@@ -331,7 +333,7 @@ class IcegameEnv(core.Env):
                 # calculate the metropolis reward
                 #acorr = autocorr(statevec, self.refconfig)
                 #reward = (1.0 - acorr) * self.reward_scale
-                reward = 1.0
+                reward = self.accept_reward
 
                 # TODO: Calculate recent # steps' acceptance rate
                 """Dump resutls into file.

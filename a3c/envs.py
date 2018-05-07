@@ -33,6 +33,7 @@ def create_icegame_env(path, ID, hparams):
         dconfig_amp=hparams.dconfig_amp,
         #local_eng_level=hparams.disable_local,
         failure_reward=hparams.failure_reward,
+        accept_reward=hparams.accept_reward,
         stepwise_invfactor=hparams.stepwise_invfactor,
         config_refresh_steps=hparams.config_refresh_steps,
     )

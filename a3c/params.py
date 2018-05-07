@@ -35,9 +35,10 @@ parser.add_argument('--learning_rate', type=float, default=1e-4)
 parser.add_argument('--momentum', type=float, default=0.0)
 parser.add_argument('--grad_clip', type=float, default=40.0)
 parser.add_argument('--gamma_factor', type=float, default=0.99, help='Discounted factor in MDP')
-parser.add_argument('--entropy_cost', type=float, default=0.01, help='Const of entropy loss')
+parser.add_argument('--entropy_cost', type=float, default=0.0001, help='Const of entropy loss')
 parser.add_argument('--exploration', type=float, default=0.01, help='Exploration probability (not yet sched)')
 parser.add_argument('--failure_reward', type=float, default=-0.01, help='Punishment when update failure')
+parser.add_argument('--accept_reward', type=float, default=1.0, help='Reward when update is accepted')
 parser.add_argument('--strategy', type=str, default="egreedy", help='Option: egreedy, ea6')
 
 # Env
