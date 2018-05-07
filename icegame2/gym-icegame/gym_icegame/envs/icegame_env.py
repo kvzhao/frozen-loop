@@ -192,7 +192,7 @@ class IcegameEnv(core.Env):
 
     def set_training_condition(self,
             defect_upper_thres=2, defect_lower_thres=10, dconfig_amp=5,
-            local_eng_level=True, stepwise_invfactor=100.0):
+            local_eng_level=True, stepwise_invfactor=100.0, config_refresh_steps=10000):
         """Set and save training conds, without reset
             * local_eng_level: if it is reset, change obs dim
             should we check difference before assign?
@@ -206,6 +206,7 @@ class IcegameEnv(core.Env):
             self.local_observation_space = spaces.Discrete(10)
         else:
             self.local_observation_space = spaces.Discrete(7)
+        self.config_refresh_steps = config_refresh_steps
         print ("[GAME_ENV] Reset the training condition parameters")
         # Note: this function would not auto-save,
         # please call dump_env_setting() in application.
