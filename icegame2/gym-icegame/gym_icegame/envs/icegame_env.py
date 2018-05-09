@@ -333,6 +333,8 @@ class IcegameEnv(core.Env):
                 # calculate the metropolis reward
                 #acorr = autocorr(statevec, self.refconfig)
                 #reward = (1.0 - acorr) * self.reward_scale
+
+                # maybe it is better reward by changes.
                 reward = self.accept_reward
 
                 # TODO: Calculate recent # steps' acceptance rate
@@ -415,7 +417,7 @@ class IcegameEnv(core.Env):
             _, diffeng_level, _ = self._discrete_criteron(self.physical_observables)
 
             # Note: asymmetric reward doest work well.
-            reward = diffeng_level / self.stepwise_invfactor
+            reward = diffeng_level * self.stepwise_invfactor
 
             # Reset if timeout from env.
             if (self.sim.timeout()):
