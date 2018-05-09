@@ -336,6 +336,7 @@ class IcegameEnv(core.Env):
 
                 # maybe it is better reward by changes.
                 reward = self.accept_reward
+                reward = effort
 
                 # TODO: Calculate recent # steps' acceptance rate
                 """Dump resutls into file.
