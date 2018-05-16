@@ -158,6 +158,7 @@ class SQIceGame {
         inline int GetAgentInitSite() {return init_agent_site;};
         inline int GetAgentSite() {return get_agent_site();};
         inline int GetAgentSpin() {return get_agent_spin();};
+        inline int GetAgentSubLatt() {return latt.sub[get_agent_site()];};
 
         // Configurations (integer array)
         // NOTICE: They are not ordered!
@@ -426,6 +427,7 @@ BOOST_PYTHON_MODULE(icegame)
         .def("get_agent_site", &SQIceGame::GetAgentSite)
         .def("get_agent_init_site", &SQIceGame::GetAgentInitSite)
         .def("get_agent_spin", &SQIceGame::GetAgentSpin)
+        .def("get_agent_sublatt", &SQIceGame::GetAgentSubLatt)
         .def("get_state_t_map", &SQIceGame::GetStateTMap)
         .def("get_state_tp1_map", &SQIceGame::GetStateTp1Map)
         .def("get_state_diff_map", &SQIceGame::GetStateDiffMap)

@@ -700,6 +700,7 @@ class IcegameEnv(core.Env):
         """
         local_spins = self._transf1d(self.sim.get_local_spins())
         local_sites = self._transf1d(self.sim.get_local_sites())
+        agent_sublatt = self.sim.get_agent_sublatt() * (2*np.pi/4)
 
         # E, dE, dC: but these values are too small and close to 0 or 1
         phyobs = self._transf1d(self.sim.get_phy_observables())
@@ -707,7 +708,7 @@ class IcegameEnv(core.Env):
 
         # local observation
         if self.local_eng_level:
-            local_obs = np.concatenate((local_spins, disc_phyobs), axis=0) 
+            local_obs = np.concatenate((local_spins, agent_sublatt, disc_phyobs), axis=0)
         else:
             local_obs = local_spins
 
@@ -792,7 +793,7 @@ class IcegameEnv(core.Env):
         # hand-crafted value
         dC *= self.dconfig_amp
 
-        newphy = [E, num_defects, dC]
+        newphy = [num_defects, dC]
         return newphy
 
     def env_setting(self):
