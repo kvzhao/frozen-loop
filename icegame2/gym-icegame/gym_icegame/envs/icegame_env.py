@@ -700,7 +700,7 @@ class IcegameEnv(core.Env):
         """
         local_spins = self._transf1d(self.sim.get_local_spins())
         local_sites = self._transf1d(self.sim.get_local_sites())
-        agent_sublatt = self.sim.get_agent_sublatt() * (2*np.pi/4)
+        agent_sublatt = self._transf1d([self.sim.get_agent_sublatt() * (2*np.pi/4)])
 
         # E, dE, dC: but these values are too small and close to 0 or 1
         phyobs = self._transf1d(self.sim.get_phy_observables())
