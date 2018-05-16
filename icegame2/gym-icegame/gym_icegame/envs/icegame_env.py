@@ -415,7 +415,7 @@ class IcegameEnv(core.Env):
             # Check each scale (each of them stays in 0~1)
 
             # TODO: calculate reward wrt physical observation
-            _, diffeng_level, _ = self._discrete_criteron(self.physical_observables)
+            diffeng_level, _ = self._discrete_criteron(self.physical_observables)
 
             # Note: asymmetric reward doest work well.
             reward = diffeng_level * self.stepwise_invfactor
