@@ -163,7 +163,7 @@ class IcegameEnv(core.Env):
         else:
             self.local_observation_space = spaces.Discrete(7)
         self.action_space = spaces.Discrete(len(self.idx2act))
-        self.reward_range = (-1, 1)
+        #self.reward_range = (-1, 1)
 
         # for convention (legacy code)
         self.observation_space = spaces.Box(low=-1, high=1.0,
