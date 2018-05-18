@@ -32,6 +32,7 @@ def create_icegame_env(path, ID, hparams):
         defect_lower_thres=hparams.defect_lower_thres,
         dconfig_amp=hparams.dconfig_amp,
         #local_eng_level=hparams.disable_local,
+        smallsize_discount=hparams.smallsize_discount,
         failure_reward=hparams.failure_reward,
         accept_reward=hparams.accept_reward,
         stepwise_invfactor=hparams.stepwise_invfactor,

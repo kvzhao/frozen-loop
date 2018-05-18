@@ -49,6 +49,7 @@ parser.add_argument('--defect_upper_thres', default=4, type=int, help='Used in d
 parser.add_argument('--defect_lower_thres', default=20, type=int, help='Used in discrte_criterion() for setting thresholds')
 parser.add_argument('--dconfig_amp', default=5, type=float)
 parser.add_argument('--stepwise_invfactor', default=0.01, type=float)
+parser.add_argument('--smallsize_discount', default=5.0, type=float)
 parser.add_argument('--config_refresh_steps', default=100000, type=int)
 #parser.add_argument('--disable_local', action='store_false', default=True)
 

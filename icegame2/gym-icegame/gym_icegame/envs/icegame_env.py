@@ -72,7 +72,8 @@ class IcegameEnv(core.Env):
                     defect_lower_thres=10,
                     dconfig_amp = 5,
                     local_eng_level = True,
-                    stepwise_invfactor = 100.0,
+                    stepwise_invfactor = 0.001,
+                    smallsize_discount = 5.0,
                     failure_reward = 0.0,
                     accept_reward = 1.0,
                     config_refresh_steps = 100000,
@@ -174,6 +175,7 @@ class IcegameEnv(core.Env):
 
         # TODO: Scheduling reward scale
         self.reward_scale = 1.0
+        self.smallsize_discount = smallsize_discount
         self.failure_reward = failure_reward
         self.reward_threshold = 0.0
         self.reward_trajectory = []
@@ -195,7 +197,7 @@ class IcegameEnv(core.Env):
 
     def set_training_condition(self,
             defect_upper_thres=2, defect_lower_thres=10, dconfig_amp=5, failure_reward=0.0, accept_reward=1.0,
-            local_eng_level=True, stepwise_invfactor=100.0, config_refresh_steps=10000):
+            local_eng_level=True, stepwise_invfactor=100.0, smallsize_discount=5.0, config_refresh_steps=10000):
         """Set and save training conds, without reset
             * local_eng_level: if it is reset, change obs dim
             should we check difference before assign?
@@ -207,6 +209,7 @@ class IcegameEnv(core.Env):
         self.failure_reward = failure_reward
         self.accept_reward = accept_reward
         self.stepwise_invfactor = stepwise_invfactor
+        self.smallsize_discount = smallsize_discount
         if self.local_eng_level:
             self.local_observation_space = spaces.Discrete(10)
         else:
@@ -338,7 +341,7 @@ class IcegameEnv(core.Env):
                 reward = self.accept_reward
 
                 if loop_length == 4:
-                    reward /= 10
+                    reward /= self.smallsize_discount
 
                 # TODO: Calculate recent # steps' acceptance rate
                 """Dump resutls into file.
