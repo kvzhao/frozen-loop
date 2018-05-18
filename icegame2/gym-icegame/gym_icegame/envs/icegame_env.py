@@ -798,7 +798,7 @@ class IcegameEnv(core.Env):
         # hand-crafted value
         dC *= self.dconfig_amp
 
-        newphy = [num_defects, dC]
+        newphy = [num_defects, dE]
         return newphy
 
     def env_setting(self):
