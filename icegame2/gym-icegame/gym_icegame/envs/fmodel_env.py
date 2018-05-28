@@ -54,6 +54,8 @@ class FModelGameEnv(core.Env):
                     defect_lower_thres=10,
                     dconfig_amp = 5,
                     local_eng_level = True,
+                    smallsize_discount = 5.0,
+                    failure_reward = 0.0,
                     stepwise_invfactor = 100.0,
                     config_refresh_steps = 100000,
                 ):
@@ -156,6 +158,8 @@ class FModelGameEnv(core.Env):
 
         # TODO: Scheduling reward scale
         self.reward_scale = 1.0
+        self.smallsize_discount = smallsize_discount
+        self.failure_reward = failure_reward
         self.reward_threshold = 0.0
         self.reward_trajectory = []
         self.prev_energy_record = -1.0
@@ -176,8 +180,8 @@ class FModelGameEnv(core.Env):
         print ("[GAME_ENV] Environment of FModelGame V3 is created.")
 
     def set_training_condition(self,
-            defect_upper_thres=2, defect_lower_thres=10, dconfig_amp=5,
-            local_eng_level=True, stepwise_invfactor=100.0):
+            defect_upper_thres=2, defect_lower_thres=10, dconfig_amp=5, failure_reward=0.0, accept_reward=1.0,
+            local_eng_level=True, stepwise_invfactor=100.0, smallsize_discount=5.0, config_refresh_steps=10000):
         """Set and save training conds, without reset
             * local_eng_level: if it is reset, change obs dim
             should we check difference before assign?
@@ -186,11 +190,15 @@ class FModelGameEnv(core.Env):
         self.defect_lower_thres = defect_lower_thres
         self.dconfig_amp = dconfig_amp
         self.local_eng_level = local_eng_level
+        self.failure_reward = failure_reward
+        self.accept_reward = accept_reward
         self.stepwise_invfactor = stepwise_invfactor
+        self.smallsize_discount = smallsize_discount
         if self.local_eng_level:
             self.local_observation_space = spaces.Discrete(10)
         else:
             self.local_observation_space = spaces.Discrete(7)
+        self.config_refresh_steps = config_refresh_steps
         print ("[GAME_ENV] Reset the training condition parameters")
         # Note: this function would not auto-save,
         # please call dump_env_setting() in application.
@@ -245,7 +253,6 @@ class FModelGameEnv(core.Env):
         """Step function
             Args: action
             Returns: obs, reward, done, info
-
             TODO:
                 Taking nested list of actions as a single 'action' on markov chain transition.
         """
@@ -313,9 +320,7 @@ class FModelGameEnv(core.Env):
                 total_acc_rate = self.sim.get_total_acceptance_rate() * 100.0
                 #effort =  updated_times/total_steps * 100.0
                 effort = loop_length / ep_steps * 100.0
-                # calculate the metropolis reward
-                #acorr = autocorr(statevec, self.refconfig)
-                #reward = (1.0 - acorr) * self.reward_scale
+
                 if Energy <= self.prev_energy_record:
                     reward = 100.0 * abs(Energy - self.ground)
                 else:
