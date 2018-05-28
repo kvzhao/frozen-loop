@@ -67,7 +67,8 @@ class CNNPolicy(object):
         print ("Use two channels CNN policy")
         self.hparams = hparams
         self.ac_space = ac_space
-        self.global_state = tf.placeholder(tf.float32, [None] + list(global_space))
+        self.global_state = tf.placeholder(tf.float32, [None, 32, 32,1])
+        #self.global_state = tf.placeholder(tf.float32, [None] + list(global_space))
         self.local_state = tf.placeholder(tf.float32, [None, local_space])
 
         """ Convolutional Channel """
