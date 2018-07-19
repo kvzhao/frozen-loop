@@ -429,6 +429,7 @@ class IcegameEnv(core.Env):
             # Reset if timeout from env.
             if (self.sim.timeout()):
                 terminate = True
+                reward = -1.0
 
         obs = self.get_obs()
 
