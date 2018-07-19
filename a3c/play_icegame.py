@@ -1,3 +1,7 @@
+"""Play with Icegame
+    * enable/ disable subregion.
+"""
+
 from __future__ import print_function
 
 import os
@@ -7,9 +11,10 @@ import numpy as np
 import tensorflow as tf
 import logging
 
-from envs import create_icegame_env
 import models
+from envs import create_icegame_env
 from worker import FastSaver
+from recorder import PolicyRecorder
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -36,6 +41,23 @@ def inference(args):
     global_space = env.global_observation_space.shape
     action_space = env.action_space.n
 
+    # resize the system and enable subregion
+    if env.L != args.system_size:
+        print ("Enlarge the system {} --> {}".format(env.L, args.system_size))
+        env.resize_ice_config(args.system_size, args.mcsteps)
+        env.dump_env_setting()
+        env.save_ice()
+
+    # our trained cnn always 32, 32
+    env.enable_subregion()
+    print ("Enable sub-region mechanism.")
+
+    # policy recoder
+    ppath = os.path.join(outdir, "episodes")
+    if not os.path.exists(ppath):
+        os.makedirs(ppath)
+    pirec = PolicyRecorder(ppath)
+
     with tf.device("/cpu:0"):
         # define policy network
         with tf.variable_scope("global"):
@@ -43,7 +65,7 @@ def inference(args):
                 policy = models.SimplePolicy(global_space, local_space, action_space)
             elif args.policy == "cnn":
                 policy = models.CNNPolicy(global_space, local_space, action_space)
-            policy.global_step = tf.get_variable("global_step", [], 
+            policy.global_step = tf.get_variable("global_step", [],
                     tf.int32, initializer=tf.constant_initializer(0, dtype=tf.int32), trainable=False)
         # Variable names that start with "local" are not saved in checkpoints.
         variables_to_restore = [v for v in tf.global_variables() if not v.name.startswith("local")]
@@ -60,7 +82,7 @@ def inference(args):
 
         # summary of rewards
         action_writers = []
-        #summary_writer = tf.summary.FileWriter(outdir)
+        summary_writer = tf.summary.FileWriter(outdir)
 
         """NOT so useful.
         for act_idx in range(action_space):
@@ -101,7 +123,6 @@ def inference(args):
 
                 ind = np.arange(action_space)
                 width = 0.20
-                #action_legends = ["Up", "Down", "Left", "Right", "NextUp", "NextDown", "Metropolis"]
                 action_legends = ["head_0", "head_1", "head_2", "tail_0", "tail_1", "tail_2", "Metro"]
 
                 steps_energies=[]
@@ -112,26 +133,46 @@ def inference(args):
                 """
 
                 last_state = env.reset()
+                # these for plotting
                 steps_rewards=[]
                 steps_values=[]
+                step = 0
+
+                # policy recorder
+                pirec.attach_episode(ep)
+                # TODO: Call save_ice here?
 
                 # running policy
                 while True:
                     fetched = policy.act_inference(last_state)
-                    #fetched = policy.act_inference(last_state, *last_features)
                     prob_action, action, value_ = fetched[0], fetched[1], fetched[2]
-                    #prob_action, action, value_, features = fetched[0], fetched[1], fetched[2], fetched[3:]
 
-                    # Greedy
-                    #print ("Prob of actions: {}".format(prob_action))
+                    """TODO: Policy Recorder
+                        * prob_action
+                        * value_
+                        * local config
+                        * init_config (of course, but store in other way.)
+                        * Store all cases
+                        Q: Can we put these in env_hist.json?
+                    """
+
                     stepAct = action.argmax()
                     state, reward, terminal, info = env.step(stepAct)
+                    local = last_state.local_obs.tolist()
+                    pi_ = prob_action.tolist()
+                    value_ = value_.tolist()[0]
+                    action_ = action.tolist()
+
+                    # TODO: We need env 'weights', p(s, s', a) = ? (what the fuck is it?)
+                    # And we also want some physical observables
+                    pirec.push_step(step, stepAct, pi_, value_, local, reward)
 
                     # update stats
                     length += 1
+                    step += 1
                     rewards += reward
                     last_state = state
-                    #last_features = features
+
 
                     if info:
                         loopsize = info["Loop Size"]
@@ -140,11 +181,11 @@ def inference(args):
                     """Animation for State and Actions
                         Show Energy Bar On Screen.
                     """
+
                     if args.render:
                         # save list for plotting
                         steps_rewards.append(rewards)
                         steps_values.append(value_)
-                        energy, _, _  = env.physical_observables
                         steps_energies.append(energy)
 
                         ax2.clear()
@@ -164,40 +205,17 @@ def inference(args):
                         plt.pause(0.05)
                         #plt.clf()
 
-                    # store summary
-                    """
-                    summary = tf.Summary()
-                    summary.value.add(tag='ep_{}/reward'.format(ep), simple_value=reward)
-                    summary.value.add(tag='ep_{}/netreward'.format(ep), simple_value=rewards)
-                    summary.value.add(tag='ep_{}/value'.format(ep), simple_value=float(value_[0]))
-
-                    if info:
-                        summary.value.add(tag='ep_{}/loop_size'.format(ep), simple_value=loopsize)
-                        summary.value.add(tag='ep_{}/loop_area'.format(ep), simple_value=looparea)
-
-                    summary_writer.add_summary(summary, length)
-                    summary_writer.flush()
-
-                    summary = tf.Summary()
-                    for ac_id in range(action_space):
-                        summary.value.add(tag='action_prob', simple_value=float(prob_action[ac_id]))
-                        action_writers[ac_id].add_summary(summary, length)
-                        action_writers[ac_id].flush()
-                    """
-
                     """TODO:
                         1. Need more concrete idea for playing the game when interfering.
                         2. Save these values for post processing.
                         3. We need penalty for timeout. --> Move timeout into env.
                     """
-                    #if length >= 1024:
-                    #    terminal = True
                     if terminal:
-                        #last_features = policy.get_initial_features()  # reset lstm memory
                         print("Episode finished. Sum of rewards: %.2f. Length: %d." % (rewards, length))
-
+                        pirec.dump_episode()
                         length = 0
                         rewards = 0
+                        step=0
                         break
 
         logger.info('Finished %d true episodes.', args.num_tests)

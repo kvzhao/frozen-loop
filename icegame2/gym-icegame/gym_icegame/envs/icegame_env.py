@@ -340,6 +340,7 @@ class IcegameEnv(core.Env):
                 # maybe it is better reward by changes.
                 reward = self.accept_reward
 
+                # smallest size loop discount
                 if loop_length == 4:
                     reward /= self.smallsize_discount
 
@@ -563,7 +564,7 @@ class IcegameEnv(core.Env):
         self.use_subregion = True
 
     def disable_subregion(self):
-        self.use_subregion = Falase
+        self.use_subregion = False
 
     @property
     def action_name_mapping(self):

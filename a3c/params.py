@@ -37,7 +37,7 @@ parser.add_argument('--grad_clip', type=float, default=40.0)
 parser.add_argument('--gamma_factor', type=float, default=0.99, help='Discounted factor in MDP')
 parser.add_argument('--entropy_cost', type=float, default=0.0001, help='Const of entropy loss')
 parser.add_argument('--exploration', type=float, default=0.001, help='Exploration probability (not yet sched)')
-parser.add_argument('--failure_reward', type=float, default=-0.01, help='Punishment when update failure')
+parser.add_argument('--failure_reward', type=float, default=0.0, help='Punishment when update failure')
 parser.add_argument('--accept_reward', type=float, default=1.0, help='Reward when update is accepted')
 parser.add_argument('--strategy', type=str, default="egreedy", help='Option: egreedy, ea6')
 
@@ -45,12 +45,12 @@ parser.add_argument('--strategy', type=str, default="egreedy", help='Option: egr
 parser.add_argument('--env_id', default="IcegameEnv-v3", help='Environment id')
 # -- traning condition
 parser.add_argument('--num_mcsteps', default=4000, type=int, help='Number of MC steps for SSF update')
-parser.add_argument('--defect_upper_thres', default=4, type=int, help='Used in discrte_criterion() for setting thresholds')
-parser.add_argument('--defect_lower_thres', default=20, type=int, help='Used in discrte_criterion() for setting thresholds')
+parser.add_argument('--defect_upper_thres', default=2, type=int, help='Used in discrte_criterion() for setting thresholds')
+parser.add_argument('--defect_lower_thres', default=6, type=int, help='Used in discrte_criterion() for setting thresholds')
 parser.add_argument('--dconfig_amp', default=5, type=float)
-parser.add_argument('--stepwise_invfactor', default=0.01, type=float)
-parser.add_argument('--smallsize_discount', default=5.0, type=float)
-parser.add_argument('--config_refresh_steps', default=100000, type=int)
+parser.add_argument('--stepwise_invfactor', default=0.001, type=float)
+parser.add_argument('--smallsize_discount', default=1.0, type=float)
+parser.add_argument('--config_refresh_steps', default=10000, type=int)
 #parser.add_argument('--disable_local', action='store_false', default=True)
 
 # usage: from params import args

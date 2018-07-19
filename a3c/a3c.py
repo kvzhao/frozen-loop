@@ -59,6 +59,8 @@ class A3C(object):
             self.adv = tf.placeholder(tf.float32, [None, ], name="adv")
             self.r = tf.placeholder(tf.float32, [None, ], name="r")
 
+            #TODO: learning rate
+
             log_prob_tf = tf.nn.log_softmax(pi.logits)
             prob_tf = tf.nn.softmax(pi.logits)
 
@@ -89,7 +91,6 @@ class A3C(object):
             #TODO: image summary with canvas: x[batch, :, :, 1], it seems maxout = 10
             #TODO: Add total rewards
             #TODO: Only save image when loop occurs
-
             #canvas = tf.expand_dims(pi.minimaps[0,:,:,2], axis=2)
             #canvas = tf.expand_dims(canvas, axis=0)
 
