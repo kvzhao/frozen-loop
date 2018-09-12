@@ -28,6 +28,8 @@ class PolicyMonitor(object):
             saving a video, and plotting summaries to Tensorboard.
 
             Sync from the global policy network and run eval.
+
+            * save new 'policy' model (mean loop length)
     Args:
         env: environment to run in
         summary_writer: a tf.train.SummaryWriter used to write Tensorboard summaries
@@ -43,7 +45,7 @@ class PolicyMonitor(object):
         self.hparams = hparams
         self.policy = policy
         self.task = task
-        self.summary_writer = None 
+        self.summary_writer = None
 
         """
         indir = os.path.join(args.log_dir, 'train')
@@ -103,6 +105,8 @@ class PolicyMonitor(object):
         episode_length = 0
         policy_hist = np.zeros(self.env.action_space.n)
 
+        # run #num of inferences
+        # TODO: use params
         for _ in range(100):
             while not done:
                 fetched = self.pi.act(last_state)
@@ -156,7 +160,7 @@ def run_monitor(args, server):
     def init_fn(ses):
         logger.info("Initializing all parameters.")
         ses.run(init_all_op)
-        
+
     config = tf.ConfigProto(device_filters=["/job:ps", "/job:worker/task:{}/cpu:0".format(args.task)])
 
     logdir = os.path.join(args.logdir, 'eval')
