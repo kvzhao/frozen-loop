@@ -6,11 +6,7 @@ New design of the icegame!
 ### What's New?
 
 * Support long loop algorithm.
-* Can do double visiting.
-
-### TODOs
-
-* states and observations.
+* Episode recorder.
 
 ## Compile & Install 
 
@@ -41,18 +37,7 @@ python setup.py install
 
 which depends on openai gym.
 
-## Quick Start
-
-## Game Scenario
-Draw a proposed loop, then summit.
-
-### actions
-
-### rewards
-
-### observations
 
 ## Callable interface from libicegame
 List in sqice.hpp
 
-## TODO Lists
