@@ -1,5 +1,4 @@
 """F-Model Environment Version 3:
-  Inherit from icegamev3
 """
 from __future__ import division
 
@@ -25,12 +24,10 @@ from subregion_tools import move_center, periodic_crop
 
 rnum = np.random.randint
 
-"""TODO and Discussion List:
+"""TODO: Reward function design r(s,a)
+    * How to do this?
+    * Goal: We hope to see the hybrid between SSF and loop are used in the same scenario.
 """
-#Q: Are these hyper-parameters needed to be here?
-#Q: do we still need life? --> NO, lives is bad mechanism.
-# For now, NO timeout NO lives
-#Q: Do we only trust one ep counter?
 
 # the following parameters are depreciated.
 NUM_OBSERVATION_MAPS = 7 # in total
@@ -332,11 +329,6 @@ class FModelGameEnv(core.Env):
                 """Dump resutls into file.
                     TODO: Different counter
                 """
-                # output to self.ofilename: NOTE: No need to save this, all info in hist.json.
-                #with open(self.ofilename, "a") as f:
-                #    f.write("1D: {}, \n(2D: {})\n".format(self.sim.get_trajectory(), self.convert_1Dto2D(self.sim.get_trajectory())))
-                #    print ("\tSave loop configuration to file: {}".format(self.ofilename))
-
                 print ("\tGlobal step: {}, Local step: {}".format(total_steps, ep_steps))
                 print ("\tTotal accepted number = {}".format(updated_times))
                 print ("\tTotal Metropolis number = {}".format(metropolis_times))
