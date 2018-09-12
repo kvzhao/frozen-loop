@@ -307,8 +307,8 @@ class IceModel(object):
   def get_ice(self):
     return self.env.sim.get_state_t()
 
-  def get_defect(self):
-    return self.env.sim.get_symmetric_defect()
+  def get_symm_vertex(self):
+    return self.env.sim.get_symmetric_vertex()
 
   def apply_loop(self, loop):
     self.env.sim.follow_trajectory(loop)
