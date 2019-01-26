@@ -3,7 +3,7 @@ import os,sys
 import pickle as pkl
 
 Sq = []
-for s in range(8):
+for s in np.arange(7,12,1):
     if not os.path.exists('log_obs/Sq.npd.s%d.npy'%(s)):
         continue
     Sq.append(np.load('log_obs/Sq.npd.s%d.npy'%(s)))

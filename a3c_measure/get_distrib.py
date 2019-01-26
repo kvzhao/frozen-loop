@@ -6,7 +6,7 @@ Log_accuRev = []
 for i in range(1024):  
     tmp = []
     tmp2= []
-    for s in range(8):
+    for s in np.arange(7,12,1):
         if not os.path.exists('log_accu/Fwd.%d.npd.s%d.npy'%(i,s)):
             continue
         tmp.append(np.load('log_accu/Fwd.%d.npd.s%d.npy'%(i,s)))

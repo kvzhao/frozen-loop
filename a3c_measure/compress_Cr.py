@@ -4,7 +4,7 @@ import pickle as pkl
 
 Crx = []
 Cry = []
-for s in range(8):
+for s in np.arange(7,12,1):
     if not os.path.exists('log_obs/Cx.npd.s%d.npy'%(s)):
         continue
     if not os.path.exists('log_obs/Cy.npd.s%d.npy'%(s)):
