@@ -51,3 +51,5 @@ python distribute_tasks.py -w 8 -l logs/my_task
 
 ## Experiment Settings
 For training, it takes about 3 days on 12 cpu cores.
+
+
