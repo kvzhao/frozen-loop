@@ -35,7 +35,6 @@ class Hamiltonian{
     int R;
     int Num_neighbors;
 
-    vector<double> J; // exchange coupling strength 
 };
 
 class Ising : public Hamiltonian{
@@ -174,13 +173,13 @@ class Square_ice : public Hamiltonian{
     
     void init(INFO info);
     void set_J1(double);
-
     double SE(int, Sample*, Lattice*);
+
     double ME(int, Sample*);
 
-    bool SSF(Sample*, Lattice*);
-
     void MCstep(Sample*, Lattice*);
+   
+    bool SSF(Sample*, Lattice*);
 
     double total_energy(Sample* , Lattice*);
     double magnetization(Sample*, Lattice*);
@@ -191,35 +190,6 @@ class Square_ice : public Hamiltonian{
     static double defect_density(Sample*, Lattice*, vector<double> &);
     void initialization(Sample*, Lattice*, int);
     void initialize_observable(Sample*, Lattice*, double, vector<double>);
-};
-
-class Square_ice_F : public Square_ice {
-
-  public:
-    Square_ice_F(INFO info, int nei) : Square_ice(info, nei){}; // dont use this.
-    Square_ice_F() : Square_ice() {};
-    void init(INFO info); // used for game env
-    //~Square_ice_F();
-    void MCstep_SSF(Sample*, Lattice*);
-    bool SSF(Sample*, Lattice*);
-
-    // Update to square ice state
-    void MCstep_ICE(Sample*, Lattice*);
-    bool SSF_ICE(Sample*, Lattice*);
-
-    double FE_diff(int, Sample*, Lattice*);
-    static double FE(int, Sample*, Lattice*);
-    void initialization(Sample*, Lattice*, int);
-    void initialize_observable(Sample*, Lattice*, double, vector<double>);
-
-    void set_J1(double);
-    // Note: J2 = eps/2
-    void set_J2(double);
-
-    double total_energy(Sample* ss, Lattice* la);
-
-  private:
-    double J1, J2; 
 };
 
 

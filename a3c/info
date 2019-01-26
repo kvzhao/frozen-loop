@@ -1,0 +1,8 @@
+lattice_size 16
+Num_sites 1024
+Num_replicas 1
+Num_MCsteps 10000
+Num_bins 1
+Num_steps_per_bin 10000
+tempering_period 1
+Num_thermalization 10000

@@ -17,6 +17,8 @@ parser.add_argument('-m', '--mode', type=str, default='nohup', help="tmux: run w
 parser.add_argument('-l', '--logdir', default="convnet_stage2", help='Log directory path')
 parser.add_argument('-o', '--outdir', default="inferences/conv2_results", help='output log directory. Default: none')
 
+parser.add_argument('-pp','--log_accu',default='s0',help='the ID for log_accu files')
+parser.add_argument('-xL','--system_size',default=16)
 """Do we need to distinguish stages?
 """
 

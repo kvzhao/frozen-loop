@@ -17,7 +17,6 @@ SQIceGame::SQIceGame (INFO info) : sim_info(info) {
     h1_t = 0.0;
     h2_t = 0.0;
     h3_t = 0.0;
-    // Default coupling
     J1 = 1.0;
 
     // Agent information
@@ -102,7 +101,7 @@ void SQIceGame::update_state_to_config() {
     // ... Sanity check!
     // NOTE: Now, there is no defect density check!
     if (_cal_energy_density_of_state(ice_config.Ising) == AVERAGE_GORUND_STATE_ENERGY) {
-        std::cout << "[GAME] Updated Succesfully!\n";
+        //std::cout << "[GAME] Updated Succesfully!\n";
         updated_counter++; 
         // Avoid periodic timeout mechanism rule out preferable results
     } else {
@@ -143,7 +142,7 @@ void SQIceGame::ResetConfiguration() {
     Reset();
 }
 
-double SQIceGame::SetIce(const boost::python::object &iter) {
+void SQIceGame::SetIce(const boost::python::object &iter) {
     // (DANGER) Set the ice configuration from given python configuration.
     std::vector< double > dcfg = std::vector< double > (boost::python::stl_input_iterator< double > (iter),
                                                         boost::python::stl_input_iterator< double > ());
@@ -183,10 +182,9 @@ double SQIceGame::SetIce(const boost::python::object &iter) {
         //ice_config.Ising = backup;
         //restore_config_to_state();
     }
-    return energy_density;
 } 
 
-double SQIceGame::MCRun(int mcSteps) {
+void SQIceGame::MCRun(int mcSteps) {
     /*
         Prepare an ice state for game
     */
@@ -222,7 +220,7 @@ double SQIceGame::MCRun(int mcSteps) {
     std::cout << "[GAME] Defect Density D = " << _cal_defect_density_of_state(state_0) << "\n";
     std::cout << "[GAME] Config mean = " << config_mean << " , and std = " << config_stdev << "\n";
     */
-    return Etot;
+
 }
 
 // Start: Just put the agent on the site
@@ -460,6 +458,53 @@ vector<double> SQIceGame::Move(int dir_idx) {
     ep_action_counters[dir_idx]++;
     ep_action_list.emplace_back(dir_idx);
     action_statistics[dir_idx]++;
+
+    return rets;
+}
+
+// TO BE REMOVED.
+vector<double> SQIceGame::Draw(int dir_idx) {
+    // The function handles canvas and calculates step-wise returns
+    // TODO Extend action to 8 dir
+    int curt_spin = get_agent_spin();
+    vector<double> rets(4);
+    // get where to go
+    // NOTICE: get_spin returns state_tp1 spin
+    int next_spin = get_spin(get_site_by_direction(dir_idx));
+    // move agent
+    int site = go(dir_idx);
+
+    // draw on canvas TODO: no repeats!
+    if (canvas_traj_map[site] == EMPTY_MAP_VALUE) {
+        // TODO: distinguish AB sublattice
+        if (latt.sub[site] == 1) {
+            canvas_traj_map[site] = OCCUPIED_MAP_VALUE;
+        } else {
+            canvas_traj_map[site] = - OCCUPIED_MAP_VALUE;
+        }
+    }
+    canvas_spin_map[site] = double(state_t[site]);
+
+    double dE = _cal_energy_density_of_state(state_tp1) - _cal_energy_density_of_state(state_t);
+    double dd = _cal_defect_density_of_state(state_tp1);
+
+    // TODO: compare t and tp1
+    double dC = _count_config_difference(state_t, state_tp1) / double(N);
+
+    if (curt_spin == next_spin) {
+        rets[0] = REJECT_VALUE;
+    } else {
+        rets[0] = ACCEPT_VALUE;
+    }
+    rets[1] = dE; 
+    rets[2] = dd;
+    rets[3] = dC;
+
+    #ifdef DEBUG 
+    std::cout << "  current spin " << curt_spin << " , next spin " << next_spin << "\n";
+    std::cout << " Draw dE = " << dE
+                << ", dd = " << dd << "\n";
+    #endif
 
     return rets;
 }
@@ -812,7 +857,7 @@ int SQIceGame::_cal_defect_number_of_state(const vector<int> &s) {
     return num_defects;
 }
 
-double SQIceGame::_cal_symmetric_vertex_density_of_state(const vector<int> &state) {
+double SQIceGame::_cal_symmetric_defect_density_of_state(const vector<int> &state) {
     int num_defects = 0;
     for (int i = 0; i < N; ++i) {
         // notice: use index rather than site.
@@ -1128,7 +1173,6 @@ vector<int> SQIceGame::GuideAction() {
         candidates.emplace_back(NULL_SITE);
     }
 
-    // TODO: Return vector of probs.
     return candidates;
 }
 

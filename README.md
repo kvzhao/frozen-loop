@@ -53,3 +53,14 @@ python distribute_tasks.py -w 8 -l logs/my_task
 For training, it takes about 3 days on 12 cpu cores.
 
 
+## Physical Observables Measurement
+The code in a3c_measure/ folder is modified to measure the correlation function, structure factor, probability frequency.
+
+Download the Models and put in the folder to run. 
+
+```
+    sh run_*.sh
+```
+
+
+

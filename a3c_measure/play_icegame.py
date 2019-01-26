@@ -10,16 +10,19 @@ import argparse
 import numpy as np
 import tensorflow as tf
 import logging
-
 sys.path.append("../icegame2/build/src")
 
 import models
 from envs import create_icegame_env
 from worker import FastSaver
 from recorder import PolicyRecorder
-
+from khwutil import *
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+
+
 
 def inference(args):
     indir = os.path.join(args.logdir, 'train')
@@ -36,6 +39,7 @@ def inference(args):
 
     print ("ckpt: {}".format(ckpt))
 
+
     # define environment
     #env = create_icegame_env(outdir, args.env_id, args)
     env = create_icegame_env(outdir, args.env_id)
@@ -45,11 +49,17 @@ def inference(args):
     action_space = env.action_space.n
 
     # resize the system and enable subregion
-    #if env.L != args.system_size:
-    #    print ("Enlarge the system {} --> {}".format(env.L, args.system_size))
-    #    env.resize_ice_config(args.system_size, args.mcsteps)
-    #    env.dump_env_setting()
-    #    env.save_ice()
+    if env.L != args.system_size:
+        print ("Enlarge the system {} --> {}".format(env.L, int(args.system_size)))
+        
+        env.resize_ice_config(int(args.system_size), 10000)
+        env.dump_env_setting()
+        env.save_ice()
+
+    print(env.L)
+    Maper = BuildMaper(env.L)
+
+    #exit(1)
 
     # our trained cnn always 32, 32
     env.enable_subregion()
@@ -129,24 +139,51 @@ def inference(args):
                 action_legends = ["head_0", "head_1", "head_2", "tail_0", "tail_1", "tail_2", "Metro"]
 
                 steps_energies=[]
+            
 
+            Log_accuFwds = [[] for i in range(env.L**2*4)]
+            Log_accuRevs = [[] for i in range(env.L**2*4)]
+            Cx_dat = np.zeros(env.L) 
+            Cy_dat = np.zeros(env.L)
+            Sq_dat = np.zeros(env.L**2*4)
+            Ncount = 0
+            conf = None
             for ep in range(args.num_tests):
                 """TODO: policy sampling strategy
                     random, greedy and sampled policy.
                 """
 
                 env.start(create_defect=True)
-                last_state = env.reset()
+
+                if conf is None:
+                    env.reset()
+                    env.reset_ice_config()
+                    env.sim.flip()
+                    last_state = env.get_obs()
+                    conf = env.sim.get_state_t()
+                else:
+                    env.reset() 
+                    env.set_ice(conf)
+                    env.sim.flip()
+                    last_state = env.get_obs()
+                
+                loop_traj = []
+
+                loop_traj.append(Maper[int(last_state['local_sites'][-1])])
+                
                 # these for plotting
                 steps_rewards=[]
                 steps_values=[]
                 step = 0
-
+                
+                
                 # policy recorder
                 pirec.attach_episode(ep)
                 # TODO: Call save_ice here?
 
                 # running policy
+                log_accuFwd_P = 0.
+                log_accuRev_P = 0.
                 while True:
                     fetched = policy.act_inference(last_state)
                     prob_action, action, value_ = fetched[0], fetched[1], fetched[2]
@@ -159,8 +196,14 @@ def inference(args):
                         * Store all cases
                         Q: Can we put these in env_hist.json?
                     """
+                    ## deter :
+                    #stepAct = action.argmax()
 
-                    stepAct = action.argmax()
+                    ## stochastic:
+                    #print(prob_action)
+                    stepAct = np.random.choice(7,1,p=prob_action)[0]
+                    #print(stepAct)
+
                     state, reward, terminal, info = env.step(stepAct)
                     local = last_state.local_obs.tolist()
                     pi_ = prob_action.tolist()
@@ -175,8 +218,18 @@ def inference(args):
                     length += 1
                     step += 1
                     rewards += reward
-                    last_state = state
 
+                    fetched = policy.act_inference(state)
+                    O_prob_action, O_action, O_value_ = fetched[0], fetched[1], fetched[2]
+                    
+                    PFwd = prob_action[stepAct]
+                    PRev = O_prob_action[np.argwhere(state['local_sites']==last_state['local_sites'][-1])[0]][0]
+                    log_accuFwd_P += np.log(PFwd)
+                    log_accuRev_P += np.log(PRev) 
+    
+                    last_state = state
+                    if stepAct != 6:
+                        loop_traj.append(Maper[int(last_state['local_sites'][-1])])
 
                     if info:
                         loopsize = info["Loop Size"]
@@ -219,8 +272,32 @@ def inference(args):
                         length = 0
                         rewards = 0
                         step=0
+                
+                        ## check if loop is success to be constructed.
+                        if info:
+                            conf = env.sim.get_state_t() ## Update config
+                            Cx,Cy = calc_corr(conf,env.L,Maper)
+                            Sq    = calc_sq(conf,env.L)
+                            Cx_dat += Cx/env.L**2/4
+                            Cy_dat += Cy/env.L**2/4
+                            Sq_dat += Sq
+                            Ncount += 1
+                            #print(Cx_dat)
+                            #print(Cy_dat)
+                            print(log_accuFwd_P,log_accuRev_P)
+                            Log_accuFwds[loopsize].append(log_accuFwd_P)
+                            Log_accuRevs[loopsize].append(log_accuRev_P)
                         break
-
+                        
+            for i in range(1024):
+                np.save("log_accu/Fwd.%d.npd.%s"%(i,args.log_accu),np.array(Log_accuFwds[i]))
+                np.save("log_accu/Rev.%d.npd.%s"%(i,args.log_accu),np.array(Log_accuRevs[i]))
+            Cx_dat /= Ncount
+            Cy_dat /= Ncount
+            Sq_dat /= Ncount
+            np.save("log_obs/Cx.npd.%s"%(args.log_accu),Cx_dat)
+            np.save("log_obs/Cy.npd.%s"%(args.log_accu),Cy_dat)
+            np.save("log_obs/Sq.npd.%s"%(args.log_accu),Sq_dat)
         logger.info('Finished %d true episodes.', args.num_tests)
         if args.render:
             plt.savefig("GameScene.png")

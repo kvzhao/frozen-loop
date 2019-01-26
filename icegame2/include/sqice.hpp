@@ -117,8 +117,8 @@ class SQIceGame {
         void InitModel();
         void SetTemperature(double T);
 
-        // Equalibirum, return total energy
-        double MCRun(int mcSteps);
+        // Equalibirum
+        void MCRun(int mcSteps);
 
         // Two kinds of action operation
         //    * directional action (up/down/left/right/upper_next/lower_next)
@@ -128,12 +128,13 @@ class SQIceGame {
 
         // Use Move, instead of Draw
         vector<double> Move(int dir_dix);
+        vector<double> Draw(int dir_idx);
         vector<double> Flip();
 
         vector<int> GuideAction();
 
         // Read the configuration from python and set to ice_config
-        double SetIce(const boost::python::object &iter);
+        void SetIce(const boost::python::object &iter);
 
         // Metropolis action
         vector<double> Metropolis();
@@ -158,7 +159,6 @@ class SQIceGame {
         inline int GetAgentInitSite() {return init_agent_site;};
         inline int GetAgentSite() {return get_agent_site();};
         inline int GetAgentSpin() {return get_agent_spin();};
-        inline int GetAgentSubLatt() {return latt.sub[get_agent_site()];};
 
         // Configurations (integer array)
         // NOTICE: They are not ordered!
@@ -191,9 +191,9 @@ class SQIceGame {
         inline vector<int> GetLocalSites() {return get_local_sites();};
 
         vector<double> GetPhyObservables();
-        inline double GetSymmetricVertex() {
+        inline double GetSymmetricDefect() {
             // Not sure, we should measure s_t or s_tp1?
-            return _cal_symmetric_vertex_density_of_state(state_t);};
+            return _cal_symmetric_defect_density_of_state(state_t);};
 
         // Statistical Informations
         inline unsigned long GetTotalSteps() {return num_total_steps;};
@@ -279,7 +279,7 @@ class SQIceGame {
         int _cal_energy_of_state(const vector<int> &s);
         double _cal_energy_density_of_state(const vector<int> &s);
         double _cal_defect_density_of_state(const vector<int> &s);
-        double _cal_symmetric_vertex_density_of_state(const vector<int> &s);
+        double _cal_symmetric_defect_density_of_state(const vector<int> &s);
         int _cal_defect_number_of_state(const vector<int> &s);
         int _cal_config_t_difference();
         int _count_config_difference(const vector<int> &c1, const vector<int> &c2);
@@ -405,6 +405,7 @@ BOOST_PYTHON_MODULE(icegame)
         .def("clear_buffer", &SQIceGame::ClearBuffer)
 
         // REVISE, change the state
+        .def("draw", &SQIceGame::Draw)
         .def("move", &SQIceGame::Move)
         .def("flip", &SQIceGame::Flip)
         .def("guide_action", &SQIceGame::GuideAction)
@@ -427,7 +428,6 @@ BOOST_PYTHON_MODULE(icegame)
         .def("get_agent_site", &SQIceGame::GetAgentSite)
         .def("get_agent_init_site", &SQIceGame::GetAgentInitSite)
         .def("get_agent_spin", &SQIceGame::GetAgentSpin)
-        .def("get_agent_sublatt", &SQIceGame::GetAgentSubLatt)
         .def("get_state_t_map", &SQIceGame::GetStateTMap)
         .def("get_state_tp1_map", &SQIceGame::GetStateTp1Map)
         .def("get_state_diff_map", &SQIceGame::GetStateDiffMap)
@@ -436,7 +436,7 @@ BOOST_PYTHON_MODULE(icegame)
         .def("get_neighbor_sites", &SQIceGame::GetNeighborSites)
 
         .def("get_phy_observables", &SQIceGame::GetPhyObservables)
-        .def("get_symmetric_vertex", &SQIceGame::GetSymmetricVertex)
+        .def("get_symmetric_vertex", &SQIceGame::GetSymmetricDefect)
 
 
         // LEGACY or TO BE REMOVED
