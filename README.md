@@ -1,8 +1,11 @@
 # Neural Loop Algorithm
 
-Reinforcement learning framework for discovering Monte Carlo algorithm on topological model.
+Reinforcement learning framework for discovering Monte Carlo algorithm on ice model.
 
-![](https://youtu.be/8ElDneQO1ac)
+This is an official repository of paper ["Generation of ice states through deep reinforcement learning
+"](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.99.062106)
+
+[![](http://img.youtube.com/vi/8ElDneQO1ac/0.jpg)](http://www.youtube.com/watch?v=8ElDneQO1ac "")
 
 ## Prerequisites
 General
@@ -38,7 +41,7 @@ or download model from https://drive.google.com/drive/folders/15MO-S_po4NIKsBL94
 
 Now, we can play with it.
 ```
-python2.7 play_icegame.py --log-dir saved_model
+python play_icegame.py --log-dir saved_model
 ```
 Use `--render` for visualization.
 
@@ -52,7 +55,6 @@ python distribute_tasks.py -w 8 -l logs/my_task
 ## Experiment Settings
 For training, it takes about 3 days on 12 cpu cores.
 
-
 ## Physical Observables Measurement
 The code in a3c_measure/ folder is modified to measure the correlation function, structure factor, probability frequency.
 
@@ -61,6 +63,3 @@ Download the Models and put in the folder to run.
 ```
     sh run_*.sh
 ```
-
-
-
