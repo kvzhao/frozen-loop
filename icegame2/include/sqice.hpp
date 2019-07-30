@@ -62,11 +62,6 @@ const double REJECT_VALUE = -1.0;
 const double DEFECT_DENSITY_THRESHOLD = 0.2;
 
 const double AGENT_OCCUPIED_VALUE = 1.0;
-//const double AGENT_OCCUPIED_SUBLATT_A = +1.0;
-//const double AGENT_OCCUPIED_SUBLATT_B = -1.0;
-//const double AGENT_FORESEE_VALUE = 0.75;
-//const double AGENT_FORESEE_SUBLATT_A = +0.75;
-//const double AGENT_FORESEE_SUBLATT_B = -0.75;
 
 const int MCSTEPS_TO_EQUILIBRIUM = 2000;
 

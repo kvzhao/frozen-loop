@@ -202,11 +202,9 @@ def inference(args):
                         ax1.set_title("IceGame: (UpTimes: {})".format(env.sim.get_updated_counter()))
 
                         ax3.clear()
-                        #ax3.plot(steps_rewards, linewidth=2)
                         ax3.plot(steps_energies, linewidth=2)
 
                         plt.pause(0.05)
-                        #plt.clf()
 
                     """TODO:
                         1. Need more concrete idea for playing the game when interfering.

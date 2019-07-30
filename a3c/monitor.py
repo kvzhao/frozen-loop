@@ -38,24 +38,11 @@ class PolicyMonitor(object):
     """
     def __init__(self, env, policy, task, hparams):
 
-        #self.video_dir = os.path.join(summary_writer.get_logdir(), "../videos")
-        #self.video_dir = os.path.abspath(args.video_dir)
-
         self.env = env
         self.hparams = hparams
         self.policy = policy
         self.task = task
         self.summary_writer = None
-
-        """
-        indir = os.path.join(args.log_dir, 'train')
-        with open(indir + "/checkpoint", "r") as f:
-            first_line = f.readline().strip()
-            print ("first_line is : {}".format(first_line))
-        ckpt = first_line.split(' ')[-1].split('/')[-1][:-1]
-        ckpt = ckpt.split('-')[-1]
-        self.ckpt = indir + '/model.ckpt-' + ckpt
-        """
 
         # define environment
         local_space = env.local_observation_space.n
@@ -111,8 +98,6 @@ class PolicyMonitor(object):
             while not done:
                 fetched = self.pi.act(last_state)
                 action_probs, value_, = fetched[0], fetched[1]
-                #fetched = self.policy.act(last_state, *last_features)
-                #action_probs, value_, features = fetched[0], fetched[1], fetched[2:]
 
                 # Greedy action when testing
                 action = action_probs.argmax()

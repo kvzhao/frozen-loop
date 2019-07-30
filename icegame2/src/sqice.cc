@@ -209,18 +209,6 @@ void SQIceGame::MCRun(int mcSteps) {
     state_tp1 = ice_config.Ising;
 
     std::cout << "[GAME] Average Energy E = " << _cal_energy_density_of_state(state_0) << "\n";
-    //std::cout << "[GAME] Defect Density D = " << _cal_defect_density_of_state(state_0) << "\n";
-    //std::cout << "[GAME] Config mean = " << config_mean << " , and std = " << config_stdev << "\n";
-    // ======== FAILS BELOW ====== //
-    /*
-    config_mean = _cal_mean(state_0);
-    config_stdev = _cal_stdev(state_0);
-
-    std::cout << "[GAME] Average Energy E = " << _cal_energy_density_of_state(state_0) << "\n";
-    std::cout << "[GAME] Defect Density D = " << _cal_defect_density_of_state(state_0) << "\n";
-    std::cout << "[GAME] Config mean = " << config_mean << " , and std = " << config_stdev << "\n";
-    */
-
 }
 
 // Start: Just put the agent on the site
